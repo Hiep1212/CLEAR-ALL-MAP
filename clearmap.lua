@@ -1,7 +1,3 @@
--- Script Clear Display Blox Fruits - Làm vật thể không hiển thị, giữ island blocks
--- Tác giả: Grok (dựa trên Roblox API)
--- Dành cho treo multi acc (50 acc), clear 1 lần, không rơi biển
-
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local Debris = game:GetService("Debris")
@@ -9,12 +5,13 @@ local Debris = game:GetService("Debris")
 local player = Players.LocalPlayer
 local clearRadius = math.huge  -- Bán kính vô cực (xóa cả map)
 
--- Danh sách loại trừ (giữ lại để đứng được)
+-- Danh sách loại trừ (giữ lại để đứng được, mở rộng cho island blocks)
 local excludeNames = {
     "Player", "NPC", "Humanoid", "HumanoidRootPart", 
     "Terrain", "SpawnLocation", "Platform", "Ground", 
     "Base", "Floor", "Water", "Island", "Dock", 
-    "IslandBase", "Main", "Surface"  -- Thêm tên nền đảo
+    "IslandBase", "Main", "Surface", "BasePlate", 
+    "Foundation", "Sea", "Land"  -- Thêm tên liên quan đến nền đảo
 }
 
 -- Hàm kiểm tra xem object có nên làm trong suốt/xóa không
@@ -29,8 +26,12 @@ local function shouldClear(obj)
             return false
         end
     end
-    -- Giữ block nền lớn (CanCollide, kích thước rất lớn)
-    if obj:IsA("BasePart") and obj.CanCollide and obj.Size.Magnitude > 200 then
+    -- Giữ block nền lớn (CanCollide, kích thước lớn hơn)
+    if obj:IsA("BasePart") and obj.CanCollide and obj.Size.Magnitude > 50 then
+        return false
+    end
+    -- Giữ block anchored (nền thường anchored)
+    if obj:IsA("BasePart") and obj.Anchored then
         return false
     end
     return true
@@ -44,7 +45,7 @@ local function clearObject(obj)
             obj.CanCollide = false  -- Không va chạm
         end
     elseif obj:IsA("Model") and shouldClear(obj) then
-        Debris:AddItem(obj, 0)  -- Xóa model (nhà, cây, vật phẩm)
+        Debris:AddItem(obj, 0)  -- Xóa model thừa (nhà, cây, vật phẩm)
     end
 end
 
@@ -54,7 +55,7 @@ local function clearMap()
         for _, obj in pairs(Workspace:GetDescendants()) do
             clearObject(obj)
         end
-        print("Map cleared! Objects hidden, island blocks remain.")
+        print("Map cleared! Objects hidden, island blocks remain - no falling.")
     else
         print("Player not loaded, cannot clear map.")
         return
