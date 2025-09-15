@@ -4,11 +4,12 @@ local Debris = game:GetService("Debris")
 
 local player = Players.LocalPlayer
 
--- Danh sách vật thể cần clear (chỉ vật thừa nhỏ)
+-- Danh sách vật thể cần clear (mở rộng cho Blox Fruits)
 local clearNames = {
-    "Rock", "Stone", "Debris", "Rubble", "Tree", "Bush", "Grass", 
-    "Chest", "Barrel", "Crate", "Fruit", "DevilFruit", "Quest", 
-    "Boat", "Ship", "House", "Building"
+    "Rock", "Stone", "Debris", "Rubble", "Tree", "PalmTree", "Bush", 
+    "Grass", "Chest", "Barrel", "Crate", "Fruit", "DevilFruit", 
+    "Quest", "Boat", "Ship", "House", "Building", "Fence", "Wall", 
+    "Cactus", "Box", "Item", "Prop", "Decoration"
 }
 
 -- Danh sách loại trừ (giữ lại để đứng được)
@@ -37,9 +38,10 @@ local function shouldClear(obj)
     if obj:IsA("BasePart") and (obj.CanCollide and obj.Size.Magnitude > 20 or obj.Anchored) then
         return false
     end
-    -- Clear vật thể nhỏ trong danh sách
+    -- Clear vật thể trong danh sách
     for _, name in pairs(clearNames) do
-        if string.find(string.lower(obj.Name), string.lower(name)) then
+        if string.find(string.lower(obj.Name), string.lower(name)) or 
+           (obj.Parent and string.find(string.lower(obj.Parent.Name), string.lower(name))) then
             return true
         end
     end
@@ -52,9 +54,11 @@ local function clearObject(obj)
         if obj.Parent == Workspace or obj.Parent:IsDescendantOf(Workspace) then
             obj.Transparency = 1  -- Làm trong suốt
             obj.CanCollide = false  -- Không va chạm
+            print("Hidden: " .. obj.Name)  -- Debug để kiểm tra
         end
     elseif obj:IsA("Model") and shouldClear(obj) then
-        Debris:AddItem(obj, 0)  -- Xóa model thừa (nhà, cây, vật phẩm)
+        Debris:AddItem(obj, 0)  -- Xóa model thừa
+        print("Removed: " .. obj.Name)  -- Debug
     end
 end
 
