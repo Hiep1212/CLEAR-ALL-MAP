@@ -1,18 +1,14 @@
--- Script Clear ALL Map Blox Fruits - Xóa mọi vật thể trừ Player/NPC/Humanoid
--- Tác giả: Grok (dựa trên Roblox API)
--- Dành cho treo multi acc (50 acc), chạy ngay không toggle
-
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local Debris = game:GetService("Debris")
 
 local player = Players.LocalPlayer
 local clearRadius = math.huge  -- Bán kính vô cực (xóa cả map)
-local clearInterval = 2  -- Clear mỗi 2 giây (tối ưu lag)
 
--- Danh sách loại trừ (chỉ giữ những thứ này)
+-- Danh sách loại trừ (giữ lại để tránh reset character)
 local excludeNames = {
-    "Player", "NPC", "Humanoid"  -- Chỉ giữ player và NPC
+    "Player", "NPC", "Humanoid", "HumanoidRootPart", "SpawnLocation", 
+    "Terrain", "Camera", "Core"  -- Thêm bảo vệ spawn, terrain, core
 }
 
 -- Hàm kiểm tra xem object có nên xóa không
@@ -22,7 +18,9 @@ local function shouldClear(obj)
         if string.find(string.lower(obj.Name), string.lower(name)) or 
            (obj.Parent and string.find(string.lower(obj.Parent.Name), string.lower(name))) or 
            obj:FindFirstChildOfClass("Humanoid") or
-           obj:IsDescendantOf(Players) then
+           obj:IsDescendantOf(Players) or
+           obj:IsA("Terrain") or
+           obj:IsDescendantOf(game:GetService("Camera")) then
             return false
         end
     end
@@ -47,24 +45,10 @@ local function clearMap()
         end
         print("Map cleared! Only Players/NPCs remain.")
     else
-        print("Player not loaded, waiting...")
+        print("Player not loaded, cannot clear map.")
+        return
     end
 end
 
--- Clear ngay lập tức khi chạy
+-- Clear một lần duy nhất
 clearMap()
-
--- Loop clear liên tục
-spawn(function()
-    while wait(clearInterval) do
-        clearMap()
-    end
-end)
-
--- Auto-reconnect nếu disconnect
-game:GetService("CoreGui").RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(child)
-    if child.Name == "ErrorPrompt" then
-        print("Disconnected, attempting to reconnect...")
-        game:GetService("TeleportService"):Teleport(game.PlaceId, player)
-    end
-end)
