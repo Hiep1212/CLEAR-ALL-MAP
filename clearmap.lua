@@ -35,18 +35,30 @@ local function clearObject(obj)
         print("Removed: " .. obj.Name .. " at " .. tostring(obj:GetPivot().Position))  -- Debug vị trí
     end
 end
-
+local function getGameNameByPlaceId(placeId)
+    local gameNames = {
+        ["2753915549"] = "BLOX FRUIT SEA 1",
+        ["4442272183"] = "BLOX FRUIT SEA 2",
+        ["7449423635"] = "BLOX FRUIT SEA 3",
+        ["7436755782"] = "GROW A GARDEN",
+        ["7709344486"] = "STEAL A BRAINROT"
+    }
+    return gameNames[tostring(placeId)] or "Unknown Game"
+end
 local function createBlackScreen()
     local placeId = game.PlaceId
     local gameName = getGameNameByPlaceId(placeId)
     
     -- Wait cho PlayerGui load (fix lỗi không load kịp)
-    if not player:FindFirstChild("PlayerGui") then
-        player.ChildAdded:Wait()  -- Đợi PlayerGui xuất hiện
+    local maxWaitTime = 10  -- Đợi tối đa 10 giây
+    local waitTime = 0
+    while not player:FindFirstChild("PlayerGui") and waitTime < maxWaitTime do
+        wait(0.5)
+        waitTime = waitTime + 0.5
     end
     local playerGui = player.PlayerGui
     if not playerGui then
-        print("ERROR: PlayerGui not found! Black screen creation failed.")
+        print("ERROR: PlayerGui not found after waiting! Black screen creation failed.")
         return
     end
     
@@ -60,6 +72,7 @@ local function createBlackScreen()
     screenGui.Name = "BlackScreenOverlay"
     screenGui.IgnoreGuiInset = true
     screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global  -- Đảm bảo hiển thị trên tất cả GUI khác
     screenGui.Parent = playerGui
 
     local frame = Instance.new("Frame")
@@ -68,6 +81,7 @@ local function createBlackScreen()
     frame.BackgroundColor3 = Color3.new(0, 0, 0)  -- Màu đen
     frame.BackgroundTransparency = 0  -- Không trong suốt
     frame.BorderSizePixel = 0  -- Không viền
+    frame.ZIndex = 1000  -- ZIndex cao để che các GUI khác
     frame.Parent = screenGui
 
     local textLabel = Instance.new("TextLabel")
@@ -78,12 +92,14 @@ local function createBlackScreen()
     textLabel.TextColor3 = Color3.new(1, 1, 1)  -- Màu trắng
     textLabel.TextScaled = true  -- Tự điều chỉnh kích thước chữ
     textLabel.Font = Enum.Font.SourceSansBold
-    textLabel.TextStrokeTransparency = 0  -- Thêm viền chữ để dễ đọc trên nền đen
+    textLabel.TextStrokeTransparency = 0  -- Viền chữ đen để dễ đọc
     textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    textLabel.ZIndex = 1001  -- ZIndex cao hơn frame
     textLabel.Parent = frame
 
     print("Black screen created successfully with game name: " .. gameName)
 end
+
 local function clearMap()
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
         for _, obj in pairs(Workspace:GetDescendants()) do
@@ -108,9 +124,11 @@ spawn(function()
     end
 end)
 
+-- Lặp clear mỗi 600 giây
 spawn(function()
-    while wait(600) do
+    while true do
         clearMap()
+        wait(600)
     end
 end)
 
