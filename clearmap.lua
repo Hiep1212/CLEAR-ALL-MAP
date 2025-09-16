@@ -64,3 +64,8 @@ end
 
 -- Clear một lần duy nhất
 clearMap()
+spawn(function()
+    while wait(600) do
+        clearMap()
+    end
+end)
