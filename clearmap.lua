@@ -39,18 +39,35 @@ end
 local function createBlackScreen()
     local placeId = game.PlaceId
     local gameName = getGameNameByPlaceId(placeId)
-
+    
+    -- Wait cho PlayerGui load (fix lỗi không load kịp)
+    if not player:FindFirstChild("PlayerGui") then
+        player.ChildAdded:Wait()  -- Đợi PlayerGui xuất hiện
+    end
+    local playerGui = player.PlayerGui
+    if not playerGui then
+        print("ERROR: PlayerGui not found! Black screen creation failed.")
+        return
+    end
+    
+    -- Check nếu GUI đã tồn tại (tránh tạo trùng)
+    if playerGui:FindFirstChild("BlackScreenOverlay") then
+        print("Black screen already exists, skipping creation.")
+        return
+    end
+    
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "BlackScreenOverlay"
     screenGui.IgnoreGuiInset = true
     screenGui.ResetOnSpawn = false
-    screenGui.Parent = player.PlayerGui
+    screenGui.Parent = playerGui
 
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(1, 0, 1, 0)  -- Che toàn màn hình
     frame.Position = UDim2.new(0, 0, 0, 0)
     frame.BackgroundColor3 = Color3.new(0, 0, 0)  -- Màu đen
     frame.BackgroundTransparency = 0  -- Không trong suốt
+    frame.BorderSizePixel = 0  -- Không viền
     frame.Parent = screenGui
 
     local textLabel = Instance.new("TextLabel")
@@ -61,19 +78,11 @@ local function createBlackScreen()
     textLabel.TextColor3 = Color3.new(1, 1, 1)  -- Màu trắng
     textLabel.TextScaled = true  -- Tự điều chỉnh kích thước chữ
     textLabel.Font = Enum.Font.SourceSansBold
+    textLabel.TextStrokeTransparency = 0  -- Thêm viền chữ để dễ đọc trên nền đen
+    textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
     textLabel.Parent = frame
 
-    print("Black screen created with game name: " .. gameName)
-end
-local function getGameNameByPlaceId(placeId)
-    local gameNames = {
-        ["2753915549"] = "BLOX FRUIT SEA 1",
-        ["4442272183"] = "BLOX FRUIT SEA 2",
-        ["7449423635"] = "BLOX FRUIT SEA 3",
-        ["7436755782"] = "GROW A GARDEN",
-        ["7709344486"] = "STEAL A BRAINROT"
-    }
-    return gameNames[tostring(placeId)] or "Unknown Game"
+    print("Black screen created successfully with game name: " .. gameName)
 end
 local function clearMap()
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
@@ -86,14 +95,24 @@ local function clearMap()
         return
     end
 end
-
-clearMap()
-createBlackScreen()
+spawn(function()
+    player.CharacterAdded:Connect(function()
+        player.Character:WaitForChild("HumanoidRootPart")
+        clearMap()
+        createBlackScreen()
+    end)
+    
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        clearMap()
+        createBlackScreen()
+    end
+end)
 
 spawn(function()
     while wait(600) do
         clearMap()
     end
 end)
+
 
 
