@@ -1,25 +1,15 @@
--- Script Clear All Map Blox Fruits - Xóa hết (gồm đảo xa), chỉ giữ island blocks
--- Tác giả: Grok (dựa trên Roblox API)
--- Dành cho treo multi acc (50 acc), clear 1 lần, không rớt nước
-
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local Debris = game:GetService("Debris")
-
 local player = Players.LocalPlayer
 local clearRadius = math.huge  -- Bán kính vô cực (xóa cả map)
-
--- Danh sách loại trừ (chỉ giữ block đảo để đứng)
 local excludeNames = {
     "Terrain", "Platform", "Ground", "Base", "Floor", 
     "Water", "Island", "Dock", "IslandBase", "Main", 
     "Surface", "BasePlate", "Foundation", "Sea", "Land"
 }
-
--- Hàm kiểm tra xem object có nên xóa không
 local function shouldClear(obj)
     if not obj or not obj.Parent then return false end
-    -- Loại trừ Terrain và block đảo lớn
     for _, name in pairs(excludeNames) do
         if string.find(string.lower(obj.Name), string.lower(name)) or 
            (obj.Parent and string.find(string.lower(obj.Parent.Name), string.lower(name))) or 
@@ -27,15 +17,12 @@ local function shouldClear(obj)
             return false
         end
     end
-    -- Giữ block lớn, anchored (nền đảo)
     if obj:IsA("BasePart") and obj.CanCollide and obj.Anchored and obj.Size.Magnitude > 50 then
         return false
     end
-    -- Xóa hết, kể cả Player, NPC
     return true
 end
 
--- Hàm xóa hoặc làm trong suốt object
 local function clearObject(obj)
     if (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) and shouldClear(obj) then
         if obj.Parent == Workspace or obj.Parent:IsDescendantOf(Workspace) then
@@ -49,7 +36,22 @@ local function clearObject(obj)
     end
 end
 
--- Hàm clear toàn map (gồm đảo xa)
+local function createBlackScreen()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "BlackScreenOverlay"
+    screenGui.IgnoreGuiInset = true
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = player.PlayerGui
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 1, 0)  -- Che toàn màn hình
+    frame.Position = UDim2.new(0, 0, 0, 0)
+    frame.BackgroundColor3 = Color3.new(0, 0, 0)  -- Màu đen
+    frame.BackgroundTransparency = 0  -- Không trong suốt
+    frame.Parent = screenGui
+    print("Black screen created!")
+end
+
 local function clearMap()
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
         for _, obj in pairs(Workspace:GetDescendants()) do
@@ -62,12 +64,12 @@ local function clearMap()
     end
 end
 
--- Clear một lần duy nhất
 clearMap()
+createBlackScreen()
 
--- Bổ sung: Xóa mỗi 600 giây 1 lần
 spawn(function()
     while wait(600) do
         clearMap()
     end
 end)
+
