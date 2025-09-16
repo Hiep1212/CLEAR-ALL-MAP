@@ -45,12 +45,29 @@ local function getGameNameByPlaceId(placeId)
     }
     return gameNames[tostring(placeId)] or "Unknown Game"
 end
+local function checkPlayerLevel()
+    local placeId = tostring(game.PlaceId)
+    local isBloxFruits = placeId == "2753915549" or placeId == "4442272183" or placeId == "7449423635"
+    
+    if not isBloxFruits then
+        return "N/A"
+    end
+    
+    local level = "N/A"
+    if player:FindFirstChild("Data") and player.Data:FindFirstChild("Level") then
+        level = tostring(player.Data.Level.Value)
+        print("Player level: " .. level)
+    else
+        print("ERROR: Level not found in player.Data.Level")
+    end
+    return level
+end
 local function createBlackScreen()
     local placeId = game.PlaceId
     local gameName = getGameNameByPlaceId(placeId)
+    local level = checkPlayerLevel()
     
-    -- Wait cho PlayerGui load (fix lỗi không load kịp)
-    local maxWaitTime = 10  -- Đợi tối đa 10 giây
+    local maxWaitTime = 10
     local waitTime = 0
     while not player:FindFirstChild("PlayerGui") and waitTime < maxWaitTime do
         wait(0.5)
@@ -62,9 +79,12 @@ local function createBlackScreen()
         return
     end
     
-    -- Check nếu GUI đã tồn tại (tránh tạo trùng)
     if playerGui:FindFirstChild("BlackScreenOverlay") then
-        print("Black screen already exists, skipping creation.")
+        print("Black screen already exists, updating text...")
+        local frame = playerGui.BlackScreenOverlay:FindFirstChild("Frame")
+        if frame and frame:FindFirstChild("TextLabel") then
+            frame.TextLabel.Text = gameName .. " - Level: " .. level
+        end
         return
     end
     
@@ -72,34 +92,35 @@ local function createBlackScreen()
     screenGui.Name = "BlackScreenOverlay"
     screenGui.IgnoreGuiInset = true
     screenGui.ResetOnSpawn = false
-    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global  -- Đảm bảo hiển thị trên tất cả GUI khác
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
     screenGui.Parent = playerGui
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, 0, 1, 0)  -- Che toàn màn hình
+    frame.Name = "Frame"
+    frame.Size = UDim2.new(1, 0, 1, 0)
     frame.Position = UDim2.new(0, 0, 0, 0)
-    frame.BackgroundColor3 = Color3.new(0, 0, 0)  -- Màu đen
-    frame.BackgroundTransparency = 0  -- Không trong suốt
-    frame.BorderSizePixel = 0  -- Không viền
-    frame.ZIndex = 1000  -- ZIndex cao để che các GUI khác
+    frame.BackgroundColor3 = Color3.new(0, 0, 0)
+    frame.BackgroundTransparency = 0
+    frame.BorderSizePixel = 0
+    frame.ZIndex = 1000
     frame.Parent = screenGui
 
     local textLabel = Instance.new("TextLabel")
-    textLabel.Size = UDim2.new(1, 0, 0.1, 0)  -- Kích thước chữ
-    textLabel.Position = UDim2.new(0, 0, 0.45, 0)  -- Ở giữa màn hình
-    textLabel.BackgroundTransparency = 1  -- Trong suốt nền chữ
-    textLabel.Text = gameName  -- Tên game
-    textLabel.TextColor3 = Color3.new(1, 1, 1)  -- Màu trắng
-    textLabel.TextScaled = true  -- Tự điều chỉnh kích thước chữ
+    textLabel.Name = "TextLabel"
+    textLabel.Size = UDim2.new(1, 0, 0.1, 0)
+    textLabel.Position = UDim2.new(0, 0, 0.45, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.Text = gameName .. " - Level: " .. level
+    textLabel.TextColor3 = Color3.new(1, 1, 1)
+    textLabel.TextScaled = true
     textLabel.Font = Enum.Font.SourceSansBold
-    textLabel.TextStrokeTransparency = 0  -- Viền chữ đen để dễ đọc
+    textLabel.TextStrokeTransparency = 0
     textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-    textLabel.ZIndex = 1001  -- ZIndex cao hơn frame
+    textLabel.ZIndex = 1001
     textLabel.Parent = frame
 
-    print("Black screen created successfully with game name: " .. gameName)
+    print("Black screen created successfully with game name: " .. gameName .. " and level: " .. level)
 end
-
 local function clearMap()
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
         for _, obj in pairs(Workspace:GetDescendants()) do
@@ -124,10 +145,21 @@ spawn(function()
     end
 end)
 
--- Lặp clear mỗi 600 giây
+-- Lặp clear mỗi 600 giây và cập nhật level
 spawn(function()
     while true do
         clearMap()
+        if player.PlayerGui and player.PlayerGui:FindFirstChild("BlackScreenOverlay") then
+            local level = checkPlayerLevel()
+            local frame = player.PlayerGui.BlackScreenOverlay:FindFirstChild("Frame")
+            if frame and frame:FindFirstChild("TextLabel") then
+                frame.TextLabel.Text = getGameNameByPlaceId(game.PlaceId) .. " - Level: " .. level
+                print("Black screen updated with level: " .. level)
+            end
+        else
+            print("WARNING: Black screen not found, recreating...")
+            createBlackScreen()
+        end
         wait(600)
     end
 end)
