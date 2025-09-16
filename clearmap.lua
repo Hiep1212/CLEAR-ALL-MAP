@@ -27,6 +27,10 @@ local function shouldClear(obj)
     if obj:IsA("BasePart") and obj.CanCollide and obj.Anchored and obj.Size.Magnitude > 50 then
         return false
     end
+    -- Bảo vệ HumanoidRootPart của player để tránh reset
+    if obj == player.Character or (player.Character and obj == player.Character:FindFirstChild("HumanoidRootPart")) then
+        return false
+    end
     -- Xóa hết, kể cả Player, NPC
     return true
 end
@@ -40,7 +44,7 @@ local function clearObject(obj)
             print("Hidden: " .. obj.Name .. " at " .. tostring(obj.Position))  -- Debug vị trí
         end
     elseif obj:IsA("Model") and shouldClear(obj) then
-        Debris:AddItem(obj, 0)  -- Xóa model (nhà, cây, Player, NPC, v.v.)
+        Debris:AddItem(obj, 0)  -- Xóa model (nhà, cây, NPC, v.v.)
         print("Removed: " .. obj.Name .. " at " .. tostring(obj:GetPivot().Position))  -- Debug vị trí
     end
 end
@@ -48,8 +52,16 @@ end
 -- Hàm clear toàn map (gồm đảo xa)
 local function clearMap()
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        -- Duyệt tất cả object trong Workspace
         for _, obj in pairs(Workspace:GetDescendants()) do
             clearObject(obj)
+        end
+        -- Duyệt riêng thư mục Islands nếu có (đảo xa)
+        local islandsFolder = Workspace:FindFirstChild("Islands")
+        if islandsFolder then
+            for _, island in pairs(islandsFolder:GetDescendants()) do
+                clearObject(island)
+            end
         end
         print("Map cleared! All objects hidden/removed (including far islands), only large island blocks remain.")
     else
