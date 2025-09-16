@@ -37,6 +37,9 @@ local function clearObject(obj)
 end
 
 local function createBlackScreen()
+    local placeId = game.PlaceId
+    local gameName = getGameNameByPlaceId(placeId)
+
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "BlackScreenOverlay"
     screenGui.IgnoreGuiInset = true
@@ -49,9 +52,29 @@ local function createBlackScreen()
     frame.BackgroundColor3 = Color3.new(0, 0, 0)  -- Màu đen
     frame.BackgroundTransparency = 0  -- Không trong suốt
     frame.Parent = screenGui
-    print("Black screen created!")
-end
 
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Size = UDim2.new(1, 0, 0.1, 0)  -- Kích thước chữ
+    textLabel.Position = UDim2.new(0, 0, 0.45, 0)  -- Ở giữa màn hình
+    textLabel.BackgroundTransparency = 1  -- Trong suốt nền chữ
+    textLabel.Text = gameName  -- Tên game
+    textLabel.TextColor3 = Color3.new(1, 1, 1)  -- Màu trắng
+    textLabel.TextScaled = true  -- Tự điều chỉnh kích thước chữ
+    textLabel.Font = Enum.Font.SourceSansBold
+    textLabel.Parent = frame
+
+    print("Black screen created with game name: " .. gameName)
+end
+local function getGameNameByPlaceId(placeId)
+    local gameNames = {
+        ["2753915549"] = "BLOX FRUIT SEA 1",
+        ["4442272183"] = "BLOX FRUIT SEA 2",
+        ["7449423635"] = "BLOX FRUIT SEA 3",
+        ["7436755782"] = "GROW A GARDEN",
+        ["7709344486"] = "STEAL A BRAINROT"
+    }
+    return gameNames[tostring(placeId)] or "Unknown Game"
+end
 local function clearMap()
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
         for _, obj in pairs(Workspace:GetDescendants()) do
@@ -72,4 +95,5 @@ spawn(function()
         clearMap()
     end
 end)
+
 
