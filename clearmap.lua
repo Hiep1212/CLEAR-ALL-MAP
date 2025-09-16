@@ -1,7 +1,3 @@
--- Script Clear All Map Blox Fruits - Xóa hết (gồm đảo xa), chỉ giữ island blocks
--- Tác giả: Grok (dựa trên Roblox API)
--- Dành cho treo multi acc (50 acc), clear 1 lần, không rớt nước
-
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local Debris = game:GetService("Debris")
