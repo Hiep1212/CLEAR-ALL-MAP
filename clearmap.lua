@@ -5,37 +5,33 @@ local Debris = game:GetService("Debris")
 local player = Players.LocalPlayer
 local clearRadius = math.huge  -- Bán kính vô cực (xóa cả map)
 
--- Danh sách loại trừ (giữ lại để đứng được)
+-- Danh sách loại trừ (chỉ giữ block đảo để đứng)
 local excludeNames = {
-    "Player", "NPC", "Humanoid", "HumanoidRootPart", 
-    "Terrain", "SpawnLocation", "Platform", "Ground", 
-    "Base", "Floor", "Water", "Island", "Dock", 
-    "IslandBase", "Main", "Surface", "BasePlate", 
-    "Foundation", "Sea", "Land"
+    "Terrain", "Platform", "Ground", "Base", "Floor", 
+    "Water", "Island", "Dock", "IslandBase", "Main", 
+    "Surface", "BasePlate", "Foundation", "Sea", "Land"
 }
 
--- Hàm kiểm tra xem object có nên clear không
+-- Hàm kiểm tra xem object có nên xóa không
 local function shouldClear(obj)
     if not obj or not obj.Parent then return false end
-    -- Loại trừ block nền, player, NPC
+    -- Chỉ giữ Terrain và block đảo lớn
     for _, name in pairs(excludeNames) do
         if string.find(string.lower(obj.Name), string.lower(name)) or 
            (obj.Parent and string.find(string.lower(obj.Parent.Name), string.lower(name))) or 
-           obj:FindFirstChildOfClass("Humanoid") or
-           obj:IsDescendantOf(Players) or
            obj:IsA("Terrain") then
             return false
         end
     end
     -- Giữ block lớn, anchored (nền đảo)
-    if obj:IsA("BasePart") and (obj.CanCollide and obj.Size.Magnitude > 20 or obj.Anchored) then
+    if obj:IsA("BasePart") and obj.CanCollide and obj.Anchored and obj.Size.Magnitude > 50 then
         return false
     end
-    -- Clear mọi vật thể còn lại
+    -- Xóa hết, kể cả Player, NPC, Humanoid
     return true
 end
 
--- Hàm làm vật thể không hiển thị hoặc xóa
+-- Hàm xóa hoặc làm trong suốt object
 local function clearObject(obj)
     if (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) and shouldClear(obj) then
         if obj.Parent == Workspace or obj.Parent:IsDescendantOf(Workspace) then
@@ -44,7 +40,7 @@ local function clearObject(obj)
             print("Hidden: " .. obj.Name)  -- Debug
         end
     elseif obj:IsA("Model") and shouldClear(obj) then
-        Debris:AddItem(obj, 0)  -- Xóa model thừa
+        Debris:AddItem(obj, 0)  -- Xóa model (nhà, cây, Player, NPC, v.v.)
         print("Removed: " .. obj.Name)  -- Debug
     end
 end
@@ -55,7 +51,7 @@ local function clearMap()
         for _, obj in pairs(Workspace:GetDescendants()) do
             clearObject(obj)
         end
-        print("Map cleared! All objects hidden, island blocks remain - no falling.")
+        print("Map cleared! All objects hidden/removed, only large island blocks remain.")
     else
         print("Player not loaded, cannot clear map.")
         return
