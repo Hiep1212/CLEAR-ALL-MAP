@@ -3,8 +3,6 @@ local Workspace = game:GetService("Workspace")
 local Debris = game:GetService("Debris")
 
 local player = Players.LocalPlayer
-local clearRadius = math.huge  -- Bán kính vô cực (xóa cả map)
-local safeRadius = 300  -- Bán kính an toàn quanh player (giữ block gần để không rớt nước)
 
 -- Danh sách loại trừ (thu hẹp để clear mạnh hơn)
 local excludeNames = {
@@ -76,28 +74,28 @@ local function getIslandThreshold(obj, placeId)
 
     if placeId == "2753915549" then  -- Sea 1
         if string.find(islandName, "jungle") then
-            return 15  -- Block nhỏ cho Jungle
+            return 10  -- Block rất nhỏ cho Jungle
         elseif string.find(islandName, "windmill") then
-            return 25  -- Block trung bình cho Windmill Village
+            return 20  -- Block trung bình cho Windmill Village
         elseif string.find(islandName, "marine") then
-            return 45  -- Block lớn cho Marine Starter
+            return 40  -- Block lớn cho Marine Starter
         end
     elseif placeId == "4442272183" then  -- Sea 2
         if string.find(islandName, "marineford") then
             return 50  -- Block lớn cho Marineford
         elseif string.find(islandName, "desert") then
-            return 20  -- Block nhỏ cho Desert
+            return 15  -- Block nhỏ cho Desert
         elseif string.find(islandName, "dressrosa") then
-            return 35  -- Block trung bình cho Dressrosa
+            return 30  -- Block trung bình cho Dressrosa
         end
     elseif placeId == "7449423635" then  -- Sea 3
         if string.find(islandName, "skypiea") then
-            return 35  -- Block trung bình cho Skypiea
+            return 30  -- Block trung bình cho Skypiea
         elseif string.find(islandName, "turtle") then
-            return 45  -- Block lớn cho Turtle Island
+            return 40  -- Block lớn cho Turtle Island
         end
     end
-    return 30  -- Mặc định cho các đảo khác
+    return 25  -- Mặc định cho các đảo khác
 end
 
 -- Hàm kiểm tra xem object có nên xóa không
@@ -117,18 +115,18 @@ local function shouldClear(obj)
     end
     -- Giữ block lớn, anchored (nền đảo) theo ngưỡng của đảo
     if obj:IsA("BasePart") and obj.CanCollide and obj.Anchored then
+        local currentIsland = getCurrentIsland()
         local threshold = getIslandThreshold(obj, tostring(game.PlaceId))
-        if obj.Size.Magnitude > threshold then
-            print("Kept island block (threshold " .. threshold .. "): " .. obj.Name .. " at " .. tostring(obj.Position))
-            return false
-        end
-    end
-    -- Giữ block gần player (an toàn để không rớt nước)
-    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        local distance = (obj.Position - player.Character.HumanoidRootPart.Position).Magnitude
-        if distance < safeRadius and obj:IsA("BasePart") and obj.CanCollide then
-            print("Kept safe block near player (distance " .. tostring(distance) .. "): " .. obj.Name)
-            return false
+        -- Chỉ giữ block thuộc đảo player đang đứng
+        local objIsland = obj.Parent
+        while objIsland and objIsland ~= Workspace do
+            if objIsland.Parent == Workspace:FindFirstChild("Islands") and objIsland.Name:lower() == currentIsland then
+                if obj.Size.Magnitude > threshold then
+                    print("Kept island block (threshold " .. threshold .. "): " .. obj.Name .. " at " .. tostring(obj.Position))
+                    return false
+                end
+            end
+            objIsland = objIsland.Parent
         end
     end
     -- Giữ player và NPC quest/bot/quái (Model có Humanoid)
@@ -158,7 +156,7 @@ local function clearObject(obj)
     end
 end
 
--- Hàm clear toàn map (duyệt toàn Workspace)
+-- Hàm clear toàn map
 local function clearMap()
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         print("Player not loaded, cannot clear map.")
@@ -237,13 +235,13 @@ end
 spawn(function()
     player.CharacterAdded:Connect(function()
         player.Character:WaitForChild("HumanoidRootPart")
-        wait(1)  -- Đợi thêm để đảm bảo map load
+        wait(2)  -- Đợi thêm để đảm bảo map load
         clearMap()
         createTextLabel()
     end)
     
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        wait(1)  -- Đợi thêm để đảm bảo map load
+        wait(2)  -- Đợi thêm để đảm bảo map load
         clearMap()
         createTextLabel()
     end
