@@ -2,15 +2,25 @@ local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local Debris = game:GetService("Debris")
 
-print("Script started!") -- Debug: Xác nhận script chạy
+print("Script started! Time: " .. os.date("%H:%M:%S")) -- Debug: Xác nhận script chạy
 
 local player = Players.LocalPlayer
 
--- Danh sách loại trừ (thu hẹp tối đa để clear mạnh)
+-- Danh sách loại trừ (thu hẹp tối đa)
 local excludeNames = {
     "Terrain", "Quest", "Giver", "Board", "Bot", "Enemy", "Chest", "Treasure",
     "IslandBase", "IslandFloor", "Main", "Floor", "Base"
 }
+
+-- In danh sách folder trong Workspace để debug cấu trúc
+local function debugWorkspaceStructure()
+    print("Workspace structure:")
+    for _, child in pairs(Workspace:GetChildren()) do
+        if child:IsA("Folder") or child:IsA("Model") then
+            print(" - " .. child.Name .. " (" .. child.ClassName .. ")")
+        end
+    end
+end
 
 -- Hàm ánh xạ Place ID sang tên game
 local function getGameNameByPlaceId(placeId)
@@ -48,7 +58,7 @@ local function getCurrentIsland()
         return nil
     end
     local rootPart = player.Character.HumanoidRootPart
-    local ray = Ray.new(rootPart.Position, Vector3.new(0, -100, 0))
+    local ray = Ray.new(rootPart.Position, Vector3.new(0, -200, 0)) -- Tăng độ dài ray
     local ignoreList = {player.Character}
     local part = Workspace:FindPartOnRayWithIgnoreList(ray, ignoreList)
     if part then
@@ -78,28 +88,28 @@ local function getIslandThreshold(obj, placeId)
 
     if placeId == "2753915549" then  -- Sea 1
         if string.find(islandName, "jungle") then
-            return 8  -- Block rất nhỏ cho Jungle
+            return 6  -- Block rất nhỏ cho Jungle
         elseif string.find(islandName, "windmill") then
-            return 15  -- Block trung bình cho Windmill Village
+            return 12  -- Block trung bình cho Windmill Village
         elseif string.find(islandName, "marine") then
-            return 35  -- Block lớn cho Marine Starter
+            return 30  -- Block lớn cho Marine Starter
         end
     elseif placeId == "4442272183" then  -- Sea 2
         if string.find(islandName, "marineford") then
-            return 45  -- Block lớn cho Marineford
+            return 40  -- Block lớn cho Marineford
         elseif string.find(islandName, "desert") then
-            return 10  -- Block nhỏ cho Desert
+            return 8  -- Block nhỏ cho Desert
         elseif string.find(islandName, "dressrosa") then
-            return 25  -- Block trung bình cho Dressrosa
+            return 20  -- Block trung bình cho Dressrosa
         end
     elseif placeId == "7449423635" then  -- Sea 3
         if string.find(islandName, "skypiea") then
-            return 25  -- Block trung bình cho Skypiea
+            return 20  -- Block trung bình cho Skypiea
         elseif string.find(islandName, "turtle") then
-            return 35  -- Block lớn cho Turtle Island
+            return 30  -- Block lớn cho Turtle Island
         end
     end
-    return 20  -- Mặc định cho các đảo khác
+    return 15  -- Mặc định cho các đảo khác
 end
 
 -- Hàm kiểm tra xem object có nên xóa không
@@ -163,15 +173,20 @@ end
 
 -- Hàm clear toàn map
 local function clearMap()
+    if not Workspace then
+        print("ERROR: Workspace not found!")
+        return
+    end
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
-        print("ERROR: Player not loaded, cannot clear map.")
+        print("ERROR: Player or HumanoidRootPart not loaded, cannot clear map.")
         return
     end
 
+    debugWorkspaceStructure() -- In cấu trúc Workspace
     local totalObjects = 0
     local keptObjects = 0
     local removedObjects = 0
-    local objectsToClear = Workspace:GetDescendants()  -- Duyệt toàn Workspace
+    local objectsToClear = Workspace:GetDescendants()
 
     print("Starting map clear, total objects to check: " .. #objectsToClear)
     for _, obj in pairs(objectsToClear) do
@@ -241,14 +256,14 @@ end
 spawn(function()
     player.CharacterAdded:Connect(function()
         player.Character:WaitForChild("HumanoidRootPart")
-        wait(3)  -- Đợi map load đầy đủ
+        wait(5)  -- Đợi map load đầy đủ
         print("Character loaded, starting initial clear...")
         clearMap()
         createTextLabel()
     end)
     
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        wait(3)  -- Đợi map load đầy đủ
+        wait(5)  -- Đợi map load đầy đủ
         print("Player loaded, starting initial clear...")
         clearMap()
         createTextLabel()
