@@ -5,12 +5,12 @@ local Debris = game:GetService("Debris")
 local player = Players.LocalPlayer
 local clearRadius = math.huge  -- Bán kính vô cực (xóa cả map)
 
--- Danh sách loại trừ (chỉ giữ block đảo, quest, và chest)
+-- Danh sách loại trừ (chỉ giữ block đảo, quest, bot, rương)
 local excludeNames = {
     "Terrain", "Platform", "Ground", "Base", "Floor", 
     "Water", "Island", "Dock", "IslandBase", "Main", 
     "Surface", "BasePlate", "Foundation", "Sea", "Land",
-    "Quest", "Giver", "Board", "Chest", "Treasure"
+    "Quest", "Giver", "Board", "Bot", "Enemy", "Chest", "Treasure"
 }
 
 -- Hàm ánh xạ Place ID sang tên game
@@ -44,10 +44,10 @@ local function checkPlayerLevel()
     return level
 end
 
--- Hàm kiểm tra xem object có nên xóa không
+-- Hàm kiểm tra xem object có nên xóa không (sửa để giữ player, NPC quest, bot/quái, rương, không rớt nước)
 local function shouldClear(obj)
     if not obj or not obj.Parent then return false end
-    -- Loại trừ Terrain, block đảo lớn, quest, và chest
+    -- Loại trừ Terrain và block đảo lớn
     for _, name in pairs(excludeNames) do
         if string.find(string.lower(obj.Name), string.lower(name)) or 
            (obj.Parent and string.find(string.lower(obj.Parent.Name), string.lower(name))) or 
@@ -55,19 +55,18 @@ local function shouldClear(obj)
             return false
         end
     end
-    -- Giữ block lớn, anchored (nền đảo)
+    -- Giữ block lớn, anchored (nền đảo) để không rớt nước
     if obj:IsA("BasePart") and obj.CanCollide and obj.Anchored and obj.Size.Magnitude > 50 then
-        print("Kept island block: " .. obj.Name .. " at " .. tostring(obj.Position))
         return false
     end
-    -- Giữ player và quái (Model có Humanoid)
+    -- Giữ player và NPC quest/bot/quái (Model có Humanoid)
     if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
-        print("Kept player/NPC: " .. obj.Name)
+        print("Kept player/NPC quest/bot/quai: " .. obj.Name)
         return false
     end
     -- Giữ rương (Model hoặc BasePart có ClickDetector)
     if (obj:IsA("Model") or obj:IsA("BasePart")) and obj:FindFirstChildOfClass("ClickDetector") then
-        print("Kept Chest: " .. obj.Name)
+        print("Kept rương: " .. obj.Name)
         return false
     end
     return true
