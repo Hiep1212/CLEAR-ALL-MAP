@@ -6,13 +6,10 @@ local player = Players.LocalPlayer
 local clearRadius = math.huge  -- Bán kính vô cực (xóa cả map)
 local safeRadius = 300  -- Bán kính an toàn quanh player (giữ block gần để không rớt nước)
 
--- Danh sách loại trừ (chỉ giữ block đảo, quest, bot, rương)
+-- Danh sách loại trừ (thu hẹp để clear nhiều hơn)
 local excludeNames = {
-    "Terrain", "Platform", "Ground", "Base", "Floor", "Part", 
-    "Water", "Island", "Dock", "IslandBase", "Main", "IslandFloor",
-    "Surface", "BasePlate", "Foundation", "Sea", "Land",
-    "Quest", "Giver", "Board", "Bot", "Enemy", "Chest", "Treasure",
-    "Jungle", "Windmill", "Marine", "Marineford", "Desert", "Dressrosa", "Skypiea", "Turtle"
+    "Terrain", "Quest", "Giver", "Board", "Bot", "Enemy", "Chest", "Treasure",
+    "IslandBase", "IslandFloor", "Main", "Floor", "Base"
 }
 
 -- Hàm ánh xạ Place ID sang tên game
@@ -78,34 +75,34 @@ local function getIslandThreshold(obj, placeId)
 
     if placeId == "2753915549" then  -- Sea 1
         if string.find(islandName, "jungle") then
-            return 15  -- Block nhỏ cho Jungle
+            return 20  -- Block nhỏ cho Jungle
         elseif string.find(islandName, "windmill") then
-            return 25  -- Block trung bình cho Windmill Village
+            return 30  -- Block trung bình cho Windmill Village
         elseif string.find(islandName, "marine") then
-            return 40  -- Block lớn cho Marine Starter
+            return 50  -- Block lớn cho Marine Starter
         end
     elseif placeId == "4442272183" then  -- Sea 2
         if string.find(islandName, "marineford") then
-            return 50  -- Block lớn cho Marineford
+            return 60  -- Block lớn cho Marineford
         elseif string.find(islandName, "desert") then
-            return 20  -- Block nhỏ cho Desert
+            return 25  -- Block nhỏ cho Desert
         elseif string.find(islandName, "dressrosa") then
-            return 35  -- Block trung bình cho Dressrosa
+            return 40  -- Block trung bình cho Dressrosa
         end
     elseif placeId == "7449423635" then  -- Sea 3
         if string.find(islandName, "skypiea") then
-            return 35  -- Block trung bình cho Skypiea
+            return 40  -- Block trung bình cho Skypiea
         elseif string.find(islandName, "turtle") then
-            return 45  -- Block lớn cho Turtle Island
+            return 50  -- Block lớn cho Turtle Island
         end
     end
-    return 30  -- Mặc định cho các đảo khác
+    return 35  -- Mặc định cho các đảo khác
 end
 
--- Hàm kiểm tra xem object có nên xóa không (điều chỉnh threshold theo đảo và Sea)
+-- Hàm kiểm tra xem object có nên xóa không (điều chỉnh để clear mạnh hơn)
 local function shouldClear(obj)
     if not obj or not obj.Parent then return false end
-    -- Loại trừ Terrain, block đảo lớn, quest, bot, rương
+    -- Loại trừ Terrain, quest, bot, rương
     for _, name in pairs(excludeNames) do
         if string.find(string.lower(obj.Name), string.lower(name)) or 
            (obj.Parent and string.find(string.lower(obj.Parent.Name), string.lower(name))) or 
@@ -148,25 +145,37 @@ local function clearObject(obj)
         if obj.Parent == Workspace or obj.Parent:IsDescendantOf(Workspace) then
             obj.Transparency = 1  -- Làm trong suốt
             obj.CanCollide = false  -- Không va chạm
-            print("Hidden: " .. obj.Name .. " at " .. tostring(obj.Position))  -- Debug vị trí
+            print("Hidden: " .. obj.Name .. " at " .. tostring(obj.Position))
         end
     elseif obj:IsA("Model") and shouldClear(obj) then
         Debris:AddItem(obj, 0)  -- Xóa model (nhà, cây, v.v.)
-        print("Removed: " .. obj.Name .. " at " .. tostring(obj:GetPivot().Position))  -- Debug vị trí
+        print("Removed: " .. obj.Name .. " at " .. tostring(obj:GetPivot().Position))
     end
 end
 
--- Hàm clear toàn map (tối giản)
+-- Hàm clear toàn map (tối ưu để clear mạnh hơn)
 local function clearMap()
-    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        for _, obj in pairs(Workspace:GetDescendants()) do
-            clearObject(obj)
-        end
-        print("Map cleared! All objects hidden/removed (including far islands), only large island blocks remain.")
-    else
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         print("Player not loaded, cannot clear map.")
         return
     end
+
+    local totalObjects = 0
+    local keptObjects = 0
+    local removedObjects = 0
+    local islands = Workspace:FindFirstChild("Islands")
+    local objectsToClear = islands and islands:GetDescendants() or Workspace:GetDescendants()
+
+    for _, obj in pairs(objectsToClear) do
+        totalObjects = totalObjects + 1
+        if shouldClear(obj) then
+            clearObject(obj)
+            removedObjects = removedObjects + 1
+        else
+            keptObjects = keptObjects + 1
+        end
+    end
+    print(string.format("Map cleared! Total objects: %d, Kept: %d, Removed: %d", totalObjects, keptObjects, removedObjects))
 end
 
 -- Hàm tạo TextLabel hiển thị tên game và level
