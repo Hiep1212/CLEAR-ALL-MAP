@@ -1,12 +1,9 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
-local Debris = game:GetService("Debris")
-
-print("Script started! Time: " .. os.date("%H:%M:%S")) -- Debug: Xác nhận script chạy
 
 local player = Players.LocalPlayer
 
--- Danh sách loại trừ (thu hẹp tối đa để clear mạnh)
+-- Danh sách loại trừ (tối ưu để bỏ qua object vặt trên đảo)
 local excludeNames = {
     "Terrain", "Quest", "Giver", "Board", "Bot", "Enemy", "Chest", "Treasure"
 }
@@ -33,14 +30,11 @@ local function checkPlayerLevel()
     local level = "N/A"
     if player:FindFirstChild("Data") and player.Data:FindFirstChild("Level") then
         level = tostring(player.Data.Level.Value)
-        print("Player level: " .. level)
-    else
-        print("ERROR: Level not found in player.Data.Level")
     end
     return level
 end
 
--- Hàm kiểm tra xem object có nên xóa không (đơn giản, clear mạnh, không rớt nước)
+-- Hàm kiểm tra xem object có nên làm trong suốt không (tối ưu cho đảo và object vặt)
 local function shouldClear(obj)
     if not obj or not obj.Parent then
         return false
@@ -55,54 +49,54 @@ local function shouldClear(obj)
     end
     -- Giữ block lớn, anchored (nền đảo) để không rớt nước
     if obj:IsA("BasePart") and obj.CanCollide and obj.Anchored and obj.Size.Magnitude > 25 then
-        print("Kept island block: " .. obj.Name .. " at " .. tostring(obj.Position))
         return false
     end
     -- Giữ player và NPC quest/bot/quái (Model có Humanoid)
     if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
-        print("Kept player/NPC quest/bot/quai: " .. obj.Name)
         return false
     end
     -- Giữ rương (Model hoặc BasePart có ClickDetector)
     if (obj:IsA("Model") or obj:IsA("BasePart")) and obj:FindFirstChildOfClass("ClickDetector") then
-        print("Kept rương: " .. obj.Name)
         return false
     end
-    -- Clear tất cả còn lại (cây, nhà, Fruit, Boat, Ship, v.v.)
+    -- Làm trong suốt object vặt (cây, đá, nhà, Fruit, Boat, Ship, v.v.)
     return true
 end
 
--- Hàm xóa hoặc làm trong suốt object
+-- Hàm làm trong suốt object (không xóa)
 local function clearObject(obj)
     if (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) and shouldClear(obj) then
         if obj.Parent == Workspace or obj.Parent:IsDescendantOf(Workspace) then
             obj.Transparency = 1  -- Làm trong suốt
             obj.CanCollide = false  -- Không va chạm
-            print("Hidden: " .. obj.Name .. " at " .. tostring(obj.Position))
         end
     elseif obj:IsA("Model") and shouldClear(obj) then
-        Debris:AddItem(obj, 0)  -- Xóa model (nhà, cây, v.v.)
-        print("Removed: " .. obj.Name .. " at " .. tostring(obj:GetPivot().Position))
+        -- Làm trong suốt các BasePart con trong Model
+        for _, part in pairs(obj:GetDescendants()) do
+            if part:IsA("BasePart") or part:IsA("MeshPart") or part:IsA("UnionOperation") then
+                part.Transparency = 1
+                part.CanCollide = false
+            end
+        end
     end
 end
 
--- Hàm clear toàn map (tối giản, duyệt trực tiếp)
-local function clearMap()
-    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        local total = 0
-        local cleared = 0
-        for _, obj in pairs(Workspace:GetDescendants()) do
-            total = total + 1
-            if shouldClear(obj) then
-                clearObject(obj)
-                cleared = cleared + 1
-            end
-        end
-        print("Map cleared! Total objects: " .. total .. ", Cleared: " .. cleared)
-    else
-        print("Player not loaded, cannot clear map.")
+-- Hàm tối ưu map (làm trong suốt object vặt, không xóa)
+local function optimizeMap()
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+        print("ERROR: Player or HumanoidRootPart not loaded, cannot optimize map.")
         return
     end
+    local total = 0
+    local hidden = 0
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        total = total + 1
+        if shouldClear(obj) then
+            clearObject(obj)
+            hidden = hidden + 1
+        end
+    end
+    print("Map optimized! Total objects: " .. total .. ", Hidden: " .. hidden)
 end
 
 -- Hàm tạo TextLabel hiển thị tên game và level
@@ -156,31 +150,31 @@ local function createTextLabel()
     print("TextLabel created successfully with game name: " .. gameName .. " and level: " .. level)
 end
 
--- Clear lần đầu và tạo TextLabel
+-- Tối ưu lần đầu và tạo TextLabel
 spawn(function()
     player.CharacterAdded:Connect(function()
         player.Character:WaitForChild("HumanoidRootPart")
         wait(3)  -- Đợi map load đầy đủ
-        print("Character loaded, starting initial clear...")
-        clearMap()
+        print("Character loaded, starting initial optimization...")
+        optimizeMap()
         createTextLabel()
     end)
     
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
         wait(3)  -- Đợi map load đầy đủ
-        print("Player loaded, starting initial clear...")
-        clearMap()
+        print("Player loaded, starting initial optimization...")
+        optimizeMap()
         createTextLabel()
     else
         print("ERROR: Player or HumanoidRootPart not loaded on start.")
     end
 end)
 
--- Lặp clear mỗi 600 giây và cập nhật level
+-- Lặp tối ưu mỗi 600 giây và cập nhật level
 spawn(function()
     while true do
-        print("Starting periodic map clear...")
-        clearMap()
+        print("Starting periodic map optimization...")
+        optimizeMap()
         if player.PlayerGui and player.PlayerGui:FindFirstChild("GameInfoLabel") then
             local level = checkPlayerLevel()
             local textLabel = player.PlayerGui.GameInfoLabel:FindFirstChild("TextLabel")
