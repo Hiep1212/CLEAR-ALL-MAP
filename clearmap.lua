@@ -1,11 +1,14 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 
+print("Script started! Time: " .. os.date("%H:%M:%S")) -- Debug: Xác nhận script chạy
+
 local player = Players.LocalPlayer
 
--- Danh sách loại trừ (tối ưu để bỏ qua object vặt trên đảo)
+-- Danh sách loại trừ (giữ Melee, Sword, Fruit, Terrain, quest, bot, rương)
 local excludeNames = {
-    "Terrain", "Quest", "Giver", "Board", "Bot", "Enemy", "Chest", "Treasure"
+    "Terrain", "Quest", "Giver", "Board", "Bot", "Enemy", "Chest", "Treasure",
+    "Melee", "Sword", "Fruit", "DevilFruit", "BloxFruit" -- Thêm Melee, Sword, Fruit
 }
 
 -- Hàm ánh xạ Place ID sang tên game
@@ -30,36 +33,44 @@ local function checkPlayerLevel()
     local level = "N/A"
     if player:FindFirstChild("Data") and player.Data:FindFirstChild("Level") then
         level = tostring(player.Data.Level.Value)
+        print("Player level: " .. level)
+    else
+        print("ERROR: Level not found in player.Data.Level")
     end
     return level
 end
 
--- Hàm kiểm tra xem object có nên làm trong suốt không (tối ưu cho đảo và object vặt)
+-- Hàm kiểm tra xem object có nên làm trong suốt không
 local function shouldClear(obj)
     if not obj or not obj.Parent then
         return false
     end
-    -- Loại trừ Terrain, quest, bot, rương
+    -- Loại trừ Terrain, quest, bot, rương, Melee, Sword, Fruit
     for _, name in pairs(excludeNames) do
         if string.find(string.lower(obj.Name), string.lower(name)) or 
            (obj.Parent and string.find(string.lower(obj.Parent.Name), string.lower(name))) or 
            obj:IsA("Terrain") then
+            print("Kept excluded object: " .. obj.Name .. " (reason: excludeNames match)")
             return false
         end
     end
     -- Giữ block lớn, anchored (nền đảo) để không rớt nước
     if obj:IsA("BasePart") and obj.CanCollide and obj.Anchored and obj.Size.Magnitude > 25 then
+        print("Kept island block: " .. obj.Name .. " at " .. tostring(obj.Position))
         return false
     end
     -- Giữ player và NPC quest/bot/quái (Model có Humanoid)
     if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
+        print("Kept player/NPC quest/bot/quai: " .. obj.Name)
         return false
     end
     -- Giữ rương (Model hoặc BasePart có ClickDetector)
     if (obj:IsA("Model") or obj:IsA("BasePart")) and obj:FindFirstChildOfClass("ClickDetector") then
+        print("Kept rương: " .. obj.Name)
         return false
     end
-    -- Làm trong suốt object vặt (cây, đá, nhà, Fruit, Boat, Ship, v.v.)
+    -- Làm trong suốt object vặt (cây, đá, nhà, Boat, Ship, v.v.)
+    print("Will hide object: " .. obj.Name .. " at " .. tostring(obj.Position or obj:GetPivot().Position))
     return true
 end
 
@@ -69,13 +80,18 @@ local function clearObject(obj)
         if obj.Parent == Workspace or obj.Parent:IsDescendantOf(Workspace) then
             obj.Transparency = 1  -- Làm trong suốt
             obj.CanCollide = false  -- Không va chạm
+            print("Hidden: " .. obj.Name .. " at " .. tostring(obj.Position))
         end
     elseif obj:IsA("Model") and shouldClear(obj) then
         -- Làm trong suốt các BasePart con trong Model
         for _, part in pairs(obj:GetDescendants()) do
-            if part:IsA("BasePart") or part:IsA("MeshPart") or part:IsA("UnionOperation") then
+            if (part:IsA("BasePart") or part:IsA("MeshPart") or part:IsA("UnionOperation")) and 
+               not string.find(string.lower(part.Name), "melee") and 
+               not string.find(string.lower(part.Name), "sword") and 
+               not string.find(string.lower(part.Name), "fruit") then
                 part.Transparency = 1
                 part.CanCollide = false
+                print("Hidden part in Model: " .. part.Name .. " in " .. obj.Name)
             end
         end
     end
@@ -177,7 +193,7 @@ spawn(function()
         optimizeMap()
         if player.PlayerGui and player.PlayerGui:FindFirstChild("GameInfoLabel") then
             local level = checkPlayerLevel()
-            local textLabel = player.PlayerGui.GameInfoLabel:FindFirstChild("TextLabel")
+            local textLabel = playerGui.GameInfoLabel:FindFirstChild("TextLabel")
             if textLabel then
                 textLabel.Text = getGameNameByPlaceId(game.PlaceId) .. " - Level: " .. level
                 print("TextLabel updated with level: " .. level)
