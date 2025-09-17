@@ -58,12 +58,12 @@ local function getCurrentIsland()
         return nil
     end
     local rootPart = player.Character.HumanoidRootPart
-    local ray = Ray.new(rootPart.Position, Vector3.new(0, -200, 0)) -- Tăng độ dài ray
+    local ray = Ray.new(rootPart.Position, Vector3.new(0, -300, 0)) -- Tăng độ dài ray
     local ignoreList = {player.Character}
     local part = Workspace:FindPartOnRayWithIgnoreList(ray, ignoreList)
     if part then
         local island = part:FindFirstAncestorOfClass("Model")
-        local islandsFolder = Workspace:FindFirstChild("Islands") or Workspace:FindFirstChild("Map")
+        local islandsFolder = Workspace:FindFirstChild("Islands") or Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("World")
         if island and islandsFolder and island.Parent == islandsFolder then
             print("Current island: " .. island.Name)
             return island.Name:lower()
@@ -78,7 +78,7 @@ local function getIslandThreshold(obj, placeId)
     local islandName = obj.Name:lower()
     local parent = obj.Parent
     while parent and parent ~= Workspace do
-        local islandsFolder = Workspace:FindFirstChild("Islands") or Workspace:FindFirstChild("Map")
+        local islandsFolder = Workspace:FindFirstChild("Islands") or Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("World")
         if islandsFolder and parent.Parent == islandsFolder then
             islandName = parent.Name:lower()
             break
@@ -88,28 +88,28 @@ local function getIslandThreshold(obj, placeId)
 
     if placeId == "2753915549" then  -- Sea 1
         if string.find(islandName, "jungle") then
-            return 6  -- Block rất nhỏ cho Jungle
+            return 5  -- Block rất nhỏ cho Jungle
         elseif string.find(islandName, "windmill") then
-            return 12  -- Block trung bình cho Windmill Village
+            return 10  -- Block trung bình cho Windmill Village
         elseif string.find(islandName, "marine") then
-            return 30  -- Block lớn cho Marine Starter
+            return 25  -- Block lớn cho Marine Starter
         end
     elseif placeId == "4442272183" then  -- Sea 2
         if string.find(islandName, "marineford") then
-            return 40  -- Block lớn cho Marineford
+            return 35  -- Block lớn cho Marineford
         elseif string.find(islandName, "desert") then
-            return 8  -- Block nhỏ cho Desert
+            return 6  -- Block nhỏ cho Desert
         elseif string.find(islandName, "dressrosa") then
-            return 20  -- Block trung bình cho Dressrosa
+            return 15  -- Block trung bình cho Dressrosa
         end
     elseif placeId == "7449423635" then  -- Sea 3
         if string.find(islandName, "skypiea") then
-            return 20  -- Block trung bình cho Skypiea
+            return 15  -- Block trung bình cho Skypiea
         elseif string.find(islandName, "turtle") then
-            return 30  -- Block lớn cho Turtle Island
+            return 25  -- Block lớn cho Turtle Island
         end
     end
-    return 15  -- Mặc định cho các đảo khác
+    return 10  -- Mặc định cho các đảo khác
 end
 
 -- Hàm kiểm tra xem object có nên xóa không
@@ -133,7 +133,7 @@ local function shouldClear(obj)
         local threshold = getIslandThreshold(obj, tostring(game.PlaceId))
         local objIsland = obj.Parent
         while objIsland and objIsland ~= Workspace do
-            local islandsFolder = Workspace:FindFirstChild("Islands") or Workspace:FindFirstChild("Map")
+            local islandsFolder = Workspace:FindFirstChild("Islands") or Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("World")
             if islandsFolder and objIsland.Parent == islandsFolder and objIsland.Name:lower() == currentIsland then
                 if obj.Size.Magnitude > threshold then
                     print("Kept island block (threshold " .. threshold .. "): " .. obj.Name .. " at " .. tostring(obj.Position))
@@ -187,16 +187,24 @@ local function clearMap()
     local keptObjects = 0
     local removedObjects = 0
     local objectsToClear = Workspace:GetDescendants()
+    local batchSize = 1000 -- Chia nhỏ để tránh timeout
+    local index = 1
 
     print("Starting map clear, total objects to check: " .. #objectsToClear)
-    for _, obj in pairs(objectsToClear) do
-        totalObjects = totalObjects + 1
-        if shouldClear(obj) then
-            clearObject(obj)
-            removedObjects = removedObjects + 1
-        else
-            keptObjects = keptObjects + 1
+    while index <= #objectsToClear do
+        local batchEnd = math.min(index + batchSize - 1, #objectsToClear)
+        for i = index, batchEnd do
+            local obj = objectsToClear[i]
+            totalObjects = totalObjects + 1
+            if shouldClear(obj) then
+                clearObject(obj)
+                removedObjects = removedObjects + 1
+            else
+                keptObjects = keptObjects + 1
+            end
         end
+        index = index + batchSize
+        wait(0.1) -- Nghỉ ngắn để tránh timeout
     end
     print(string.format("Map cleared! Total objects: %d, Kept: %d, Removed: %d", totalObjects, keptObjects, removedObjects))
 end
@@ -252,18 +260,26 @@ local function createTextLabel()
     print("TextLabel created successfully with game name: " .. gameName .. " and level: " .. level)
 end
 
+-- Đợi game load đầy đủ
+game:GetService("RunService").Heartbeat:Wait()
+if not game:IsLoaded() then
+    print("Waiting for game to load...")
+    game.Loaded:Wait()
+end
+print("Game loaded! Time: " .. os.date("%H:%M:%S"))
+
 -- Clear lần đầu và tạo TextLabel
 spawn(function()
     player.CharacterAdded:Connect(function()
         player.Character:WaitForChild("HumanoidRootPart")
-        wait(5)  -- Đợi map load đầy đủ
+        wait(10)  -- Đợi map load đầy đủ
         print("Character loaded, starting initial clear...")
         clearMap()
         createTextLabel()
     end)
     
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        wait(5)  -- Đợi map load đầy đủ
+        wait(10)  -- Đợi map load đầy đủ
         print("Player loaded, starting initial clear...")
         clearMap()
         createTextLabel()
