@@ -6,7 +6,7 @@ local player = Players.LocalPlayer
 local clearRadius = math.huge  -- Bán kính vô cực (xóa cả map)
 local safeRadius = 300  -- Bán kính an toàn quanh player (giữ block gần để không rớt nước)
 
--- Danh sách loại trừ (thu hẹp để clear nhiều hơn)
+-- Danh sách loại trừ (thu hẹp để clear mạnh hơn)
 local excludeNames = {
     "Terrain", "Quest", "Giver", "Board", "Bot", "Enemy", "Chest", "Treasure",
     "IslandBase", "IslandFloor", "Main", "Floor", "Base"
@@ -48,8 +48,9 @@ local function getCurrentIsland()
         return nil
     end
     local rootPart = player.Character.HumanoidRootPart
-    local ray = Ray.new(rootPart.Position, Vector3.new(0, -100, 0))  -- Ray xuống dưới chân
-    local part = Workspace:FindPartOnRay(ray, player.Character)
+    local ray = Ray.new(rootPart.Position, Vector3.new(0, -100, 0))
+    local ignoreList = {player.Character}
+    local part = Workspace:FindPartOnRayWithIgnoreList(ray, ignoreList)
     if part then
         local island = part:FindFirstAncestorOfClass("Model")
         if island and island.Parent == Workspace:FindFirstChild("Islands") then
@@ -75,38 +76,42 @@ local function getIslandThreshold(obj, placeId)
 
     if placeId == "2753915549" then  -- Sea 1
         if string.find(islandName, "jungle") then
-            return 20  -- Block nhỏ cho Jungle
+            return 15  -- Block nhỏ cho Jungle
         elseif string.find(islandName, "windmill") then
-            return 30  -- Block trung bình cho Windmill Village
+            return 25  -- Block trung bình cho Windmill Village
         elseif string.find(islandName, "marine") then
-            return 50  -- Block lớn cho Marine Starter
+            return 45  -- Block lớn cho Marine Starter
         end
     elseif placeId == "4442272183" then  -- Sea 2
         if string.find(islandName, "marineford") then
-            return 60  -- Block lớn cho Marineford
+            return 50  -- Block lớn cho Marineford
         elseif string.find(islandName, "desert") then
-            return 25  -- Block nhỏ cho Desert
+            return 20  -- Block nhỏ cho Desert
         elseif string.find(islandName, "dressrosa") then
-            return 40  -- Block trung bình cho Dressrosa
+            return 35  -- Block trung bình cho Dressrosa
         end
     elseif placeId == "7449423635" then  -- Sea 3
         if string.find(islandName, "skypiea") then
-            return 40  -- Block trung bình cho Skypiea
+            return 35  -- Block trung bình cho Skypiea
         elseif string.find(islandName, "turtle") then
-            return 50  -- Block lớn cho Turtle Island
+            return 45  -- Block lớn cho Turtle Island
         end
     end
-    return 35  -- Mặc định cho các đảo khác
+    return 30  -- Mặc định cho các đảo khác
 end
 
--- Hàm kiểm tra xem object có nên xóa không (điều chỉnh để clear mạnh hơn)
+-- Hàm kiểm tra xem object có nên xóa không
 local function shouldClear(obj)
-    if not obj or not obj.Parent then return false end
+    if not obj or not obj.Parent then
+        print("Skipped null object or no parent: " .. tostring(obj))
+        return false
+    end
     -- Loại trừ Terrain, quest, bot, rương
     for _, name in pairs(excludeNames) do
         if string.find(string.lower(obj.Name), string.lower(name)) or 
            (obj.Parent and string.find(string.lower(obj.Parent.Name), string.lower(name))) or 
            obj:IsA("Terrain") then
+            print("Kept excluded object: " .. obj.Name)
             return false
         end
     end
@@ -153,7 +158,7 @@ local function clearObject(obj)
     end
 end
 
--- Hàm clear toàn map (tối ưu để clear mạnh hơn)
+-- Hàm clear toàn map (duyệt toàn Workspace)
 local function clearMap()
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         print("Player not loaded, cannot clear map.")
@@ -163,8 +168,7 @@ local function clearMap()
     local totalObjects = 0
     local keptObjects = 0
     local removedObjects = 0
-    local islands = Workspace:FindFirstChild("Islands")
-    local objectsToClear = islands and islands:GetDescendants() or Workspace:GetDescendants()
+    local objectsToClear = Workspace:GetDescendants()  -- Duyệt toàn Workspace
 
     for _, obj in pairs(objectsToClear) do
         totalObjects = totalObjects + 1
@@ -233,11 +237,13 @@ end
 spawn(function()
     player.CharacterAdded:Connect(function()
         player.Character:WaitForChild("HumanoidRootPart")
+        wait(1)  -- Đợi thêm để đảm bảo map load
         clearMap()
         createTextLabel()
     end)
     
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        wait(1)  -- Đợi thêm để đảm bảo map load
         clearMap()
         createTextLabel()
     end
