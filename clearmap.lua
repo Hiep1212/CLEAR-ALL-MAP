@@ -62,7 +62,7 @@ local function checkPlayerLevel()
     end
     return level
 end
-local function createBlackScreen()
+local function createTextLabel()
     local placeId = game.PlaceId
     local gameName = getGameNameByPlaceId(placeId)
     local level = checkPlayerLevel()
@@ -75,35 +75,25 @@ local function createBlackScreen()
     end
     local playerGui = player.PlayerGui
     if not playerGui then
-        print("ERROR: PlayerGui not found after waiting! Black screen creation failed.")
+        print("ERROR: PlayerGui not found after waiting! TextLabel creation failed.")
         return
     end
     
-    if playerGui:FindFirstChild("BlackScreenOverlay") then
-        print("Black screen already exists, updating text...")
-        local frame = playerGui.BlackScreenOverlay:FindFirstChild("Frame")
-        if frame and frame:FindFirstChild("TextLabel") then
-            frame.TextLabel.Text = gameName .. " - Level: " .. level
+    if playerGui:FindFirstChild("GameInfoLabel") then
+        print("TextLabel already exists, updating text...")
+        local textLabel = playerGui.GameInfoLabel:FindFirstChild("TextLabel")
+        if textLabel then
+            textLabel.Text = gameName .. " - Level: " .. level
         end
         return
     end
     
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "BlackScreenOverlay"
+    screenGui.Name = "GameInfoLabel"
     screenGui.IgnoreGuiInset = true
     screenGui.ResetOnSpawn = false
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
     screenGui.Parent = playerGui
-
-    local frame = Instance.new("Frame")
-    frame.Name = "Frame"
-    frame.Size = UDim2.new(1, 0, 1, 0)
-    frame.Position = UDim2.new(0, 0, 0, 0)
-    frame.BackgroundColor3 = Color3.new(0, 0, 0)
-    frame.BackgroundTransparency = 0
-    frame.BorderSizePixel = 0
-    frame.ZIndex = 1000
-    frame.Parent = screenGui
 
     local textLabel = Instance.new("TextLabel")
     textLabel.Name = "TextLabel"
@@ -117,9 +107,9 @@ local function createBlackScreen()
     textLabel.TextStrokeTransparency = 0
     textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
     textLabel.ZIndex = 1001
-    textLabel.Parent = frame
+    textLabel.Parent = screenGui
 
-    print("Black screen created successfully with game name: " .. gameName .. " and level: " .. level)
+    print("TextLabel created successfully with game name: " .. gameName .. " and level: " .. level)
 end
 local function clearMap()
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
@@ -136,12 +126,12 @@ spawn(function()
     player.CharacterAdded:Connect(function()
         player.Character:WaitForChild("HumanoidRootPart")
         clearMap()
-        createBlackScreen()
+        createTextLabel()
     end)
     
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
         clearMap()
-        createBlackScreen()
+        createTextLabel()
     end
 end)
 
@@ -149,16 +139,16 @@ end)
 spawn(function()
     while true do
         clearMap()
-        if player.PlayerGui and player.PlayerGui:FindFirstChild("BlackScreenOverlay") then
+        if player.PlayerGui and player.PlayerGui:FindFirstChild("GameInfoLabel") then
             local level = checkPlayerLevel()
-            local frame = player.PlayerGui.BlackScreenOverlay:FindFirstChild("Frame")
-            if frame and frame:FindFirstChild("TextLabel") then
-                frame.TextLabel.Text = getGameNameByPlaceId(game.PlaceId) .. " - Level: " .. level
-                print("Black screen updated with level: " .. level)
+            local textLabel = player.PlayerGui.GameInfoLabel:FindFirstChild("TextLabel")
+            if textLabel then
+                textLabel.Text = getGameNameByPlaceId(game.PlaceId) .. " - Level: " .. level
+                print("TextLabel updated with level: " .. level)
             end
         else
-            print("WARNING: Black screen not found, recreating...")
-            createBlackScreen()
+            print("WARNING: TextLabel not found, recreating...")
+            createTextLabel()
         end
         wait(600)
     end
