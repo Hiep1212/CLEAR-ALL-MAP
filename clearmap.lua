@@ -5,7 +5,7 @@ local Debris = game:GetService("Debris")
 local player = Players.LocalPlayer
 local clearRadius = math.huge  -- Bán kính vô cực (xóa cả map)
 
--- Danh sách loại trừ (chỉ giữ block đảo để đứng)
+-- Danh sách loại trừ (chỉ giữ block đảo, quest, và chest)
 local excludeNames = {
     "Terrain", "Platform", "Ground", "Base", "Floor", 
     "Water", "Island", "Dock", "IslandBase", "Main", 
@@ -57,23 +57,18 @@ local function shouldClear(obj)
     end
     -- Giữ block lớn, anchored (nền đảo)
     if obj:IsA("BasePart") and obj.CanCollide and obj.Anchored and obj.Size.Magnitude > 50 then
+        print("Kept island block: " .. obj.Name .. " at " .. tostring(obj.Position))
         return false
     end
-    -- Bảo vệ HumanoidRootPart của player
-    if obj == player.Character or (player.Character and obj == player.Character:FindFirstChild("HumanoidRootPart")) then
-        return false
-    end
-    -- Giữ quái và Quest Giver (Model có Humanoid)
+    -- Giữ player và quái (Model có Humanoid)
     if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
-        print("Kept NPC/Quest Giver: " .. obj.Name)
+        print("Kept player/NPC: " .. obj.Name)
         return false
     end
-    -- Giữ rương (Model hoặc BasePart có ClickDetector hoặc tên Chest/Treasure)
-    if obj:IsA("Model") or obj:IsA("BasePart") then
-        if obj:FindFirstChildOfClass("ClickDetector") then
-            print("Kept Chest: " .. obj.Name)
-            return false
-        end
+    -- Giữ rương (Model hoặc BasePart có ClickDetector)
+    if (obj:IsA("Model") or obj:IsA("BasePart")) and obj:FindFirstChildOfClass("ClickDetector") then
+        print("Kept Chest: " .. obj.Name)
+        return false
     end
     return true
 end
@@ -82,13 +77,13 @@ end
 local function clearObject(obj)
     if (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) and shouldClear(obj) then
         if obj.Parent == Workspace or obj.Parent:IsDescendantOf(Workspace) then
-            obj.Transparency = 1
-            obj.CanCollide = false
-            print("Hidden: " .. obj.Name .. " at " .. tostring(obj.Position))
+            obj.Transparency = 1  -- Làm trong suốt
+            obj.CanCollide = false  -- Không va chạm
+            print("Hidden: " .. obj.Name .. " at " .. tostring(obj.Position))  -- Debug vị trí
         end
     elseif obj:IsA("Model") and shouldClear(obj) then
-        Debris:AddItem(obj, 0)
-        print("Removed: " .. obj.Name .. " at " .. tostring(obj:GetPivot().Position))
+        Debris:AddItem(obj, 0)  -- Xóa model (nhà, cây, v.v.)
+        print("Removed: " .. obj.Name .. " at " .. tostring(obj:GetPivot().Position))  -- Debug vị trí
     end
 end
 
@@ -188,7 +183,3 @@ spawn(function()
         wait(600)
     end
 end)
-
-
-
-
