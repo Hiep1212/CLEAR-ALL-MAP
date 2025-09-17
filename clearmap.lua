@@ -4,13 +4,15 @@ local Debris = game:GetService("Debris")
 
 local player = Players.LocalPlayer
 local clearRadius = math.huge  -- Bán kính vô cực (xóa cả map)
+local safeRadius = 300  -- Bán kính an toàn quanh player (giữ block gần để không rớt nước)
 
 -- Danh sách loại trừ (chỉ giữ block đảo, quest, bot, rương)
 local excludeNames = {
-    "Terrain", "Platform", "Ground", "Base", "Floor", 
-    "Water", "Island", "Dock", "IslandBase", "Main", 
+    "Terrain", "Platform", "Ground", "Base", "Floor", "Part", 
+    "Water", "Island", "Dock", "IslandBase", "Main", "IslandFloor",
     "Surface", "BasePlate", "Foundation", "Sea", "Land",
-    "Quest", "Giver", "Board", "Bot", "Enemy", "Chest", "Treasure"
+    "Quest", "Giver", "Board", "Bot", "Enemy", "Chest", "Treasure",
+    "Jungle", "Windmill", "Marine", "Marineford", "Desert", "Dressrosa", "Skypiea", "Turtle"
 }
 
 -- Hàm ánh xạ Place ID sang tên game
@@ -18,9 +20,7 @@ local function getGameNameByPlaceId(placeId)
     local gameNames = {
         ["2753915549"] = "BLOX FRUIT SEA 1",
         ["4442272183"] = "BLOX FRUIT SEA 2",
-        ["7449423635"] = "BLOX FRUIT SEA 3",
-        ["7436755782"] = "GROW A GARDEN",
-        ["7709344486"] = "STEAL A BRAINROT"
+        ["7449423635"] = "BLOX FRUIT SEA 3"
     }
     return gameNames[tostring(placeId)] or "Unknown Game"
 end
@@ -44,10 +44,68 @@ local function checkPlayerLevel()
     return level
 end
 
--- Hàm kiểm tra xem object có nên xóa không (sửa để giữ player, NPC quest, bot/quái, rương, không rớt nước)
+-- Hàm check tên đảo player đang đứng
+local function getCurrentIsland()
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+        print("ERROR: HumanoidRootPart not found for island check.")
+        return nil
+    end
+    local rootPart = player.Character.HumanoidRootPart
+    local ray = Ray.new(rootPart.Position, Vector3.new(0, -100, 0))  -- Ray xuống dưới chân
+    local part = Workspace:FindPartOnRay(ray, player.Character)
+    if part then
+        local island = part:FindFirstAncestorOfClass("Model")
+        if island and island.Parent == Workspace:FindFirstChild("Islands") then
+            print("Current island: " .. island.Name)
+            return island.Name:lower()
+        end
+    end
+    print("WARNING: Current island not detected.")
+    return nil
+end
+
+-- Hàm điều chỉnh ngưỡng Size.Magnitude theo Place ID và đảo
+local function getIslandThreshold(obj, placeId)
+    local islandName = obj.Name:lower()
+    local parent = obj.Parent
+    while parent and parent ~= Workspace do
+        if parent.Parent == Workspace:FindFirstChild("Islands") then
+            islandName = parent.Name:lower()
+            break
+        end
+        parent = parent.Parent
+    end
+
+    if placeId == "2753915549" then  -- Sea 1
+        if string.find(islandName, "jungle") then
+            return 15  -- Block nhỏ cho Jungle
+        elseif string.find(islandName, "windmill") then
+            return 25  -- Block trung bình cho Windmill Village
+        elseif string.find(islandName, "marine") then
+            return 40  -- Block lớn cho Marine Starter
+        end
+    elseif placeId == "4442272183" then  -- Sea 2
+        if string.find(islandName, "marineford") then
+            return 50  -- Block lớn cho Marineford
+        elseif string.find(islandName, "desert") then
+            return 20  -- Block nhỏ cho Desert
+        elseif string.find(islandName, "dressrosa") then
+            return 35  -- Block trung bình cho Dressrosa
+        end
+    elseif placeId == "7449423635" then  -- Sea 3
+        if string.find(islandName, "skypiea") then
+            return 35  -- Block trung bình cho Skypiea
+        elseif string.find(islandName, "turtle") then
+            return 45  -- Block lớn cho Turtle Island
+        end
+    end
+    return 30  -- Mặc định cho các đảo khác
+end
+
+-- Hàm kiểm tra xem object có nên xóa không (điều chỉnh threshold theo đảo và Sea)
 local function shouldClear(obj)
     if not obj or not obj.Parent then return false end
-    -- Loại trừ Terrain và block đảo lớn
+    -- Loại trừ Terrain, block đảo lớn, quest, bot, rương
     for _, name in pairs(excludeNames) do
         if string.find(string.lower(obj.Name), string.lower(name)) or 
            (obj.Parent and string.find(string.lower(obj.Parent.Name), string.lower(name))) or 
@@ -55,9 +113,21 @@ local function shouldClear(obj)
             return false
         end
     end
-    -- Giữ block lớn, anchored (nền đảo) để không rớt nước
-    if obj:IsA("BasePart") and obj.CanCollide and obj.Anchored and obj.Size.Magnitude > 50 then
-        return false
+    -- Giữ block lớn, anchored (nền đảo) theo ngưỡng của đảo
+    if obj:IsA("BasePart") and obj.CanCollide and obj.Anchored then
+        local threshold = getIslandThreshold(obj, tostring(game.PlaceId))
+        if obj.Size.Magnitude > threshold then
+            print("Kept island block (threshold " .. threshold .. "): " .. obj.Name .. " at " .. tostring(obj.Position))
+            return false
+        end
+    end
+    -- Giữ block gần player (an toàn để không rớt nước)
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local distance = (obj.Position - player.Character.HumanoidRootPart.Position).Magnitude
+        if distance < safeRadius and obj:IsA("BasePart") and obj.CanCollide then
+            print("Kept safe block near player (distance " .. tostring(distance) .. "): " .. obj.Name)
+            return false
+        end
     end
     -- Giữ player và NPC quest/bot/quái (Model có Humanoid)
     if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
