@@ -8,7 +8,7 @@ local player = Players.LocalPlayer
 -- Danh sách loại trừ (giữ Melee, Sword, Fruit, Terrain, quest, bot, rương)
 local excludeNames = {
     "Terrain", "Quest", "Giver", "Board", "Bot", "Enemy", "Chest", "Treasure",
-    "Melee", "Sword", "Fruit", "DevilFruit", "BloxFruit" -- Thêm Melee, Sword, Fruit
+    "Melee", "Sword", "Fruit", "DevilFruit", "BloxFruit"
 }
 
 -- Hàm ánh xạ Place ID sang tên game
@@ -115,7 +115,7 @@ local function optimizeMap()
     print("Map optimized! Total objects: " .. total .. ", Hidden: " .. hidden)
 end
 
--- Hàm tạo TextLabel hiển thị tên game và level
+-- Hàm tạo và update TextLabel hiển thị tên game và level
 local function createTextLabel()
     local placeId = game.PlaceId
     local gameName = getGameNameByPlaceId(placeId)
@@ -133,37 +133,42 @@ local function createTextLabel()
         return
     end
     
-    if playerGui:FindFirstChild("GameInfoLabel") then
-        print("TextLabel already exists, updating text...")
-        local textLabel = playerGui.GameInfoLabel:FindFirstChild("TextLabel")
-        if textLabel then
-            textLabel.Text = gameName .. " - Level: " .. level
-        end
-        return
+    local screenGui = playerGui:FindFirstChild("GameInfoLabel")
+    if not screenGui then
+        screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "GameInfoLabel"
+        screenGui.IgnoreGuiInset = true
+        screenGui.ResetOnSpawn = false
+        screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+        screenGui.Parent = playerGui
     end
     
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "GameInfoLabel"
-    screenGui.IgnoreGuiInset = true
-    screenGui.ResetOnSpawn = false
-    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-    screenGui.Parent = playerGui
-
-    local textLabel = Instance.new("TextLabel")
-    textLabel.Name = "TextLabel"
-    textLabel.Size = UDim2.new(1, 0, 0.1, 0)
-    textLabel.Position = UDim2.new(0, 0, 0.45, 0)
-    textLabel.BackgroundTransparency = 1
+    local textLabel = screenGui:FindFirstChild("TextLabel")
+    if not textLabel then
+        textLabel = Instance.new("TextLabel")
+        textLabel.Name = "TextLabel"
+        textLabel.Size = UDim2.new(1, 0, 0.1, 0)
+        textLabel.Position = UDim2.new(0, 0, 0.45, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.TextColor3 = Color3.new(1, 1, 1)
+        textLabel.TextScaled = true
+        textLabel.Font = Enum.Font.SourceSansBold
+        textLabel.TextStrokeTransparency = 0
+        textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+        textLabel.ZIndex = 1001
+        textLabel.Parent = screenGui
+    end
+    
     textLabel.Text = gameName .. " - Level: " .. level
-    textLabel.TextColor3 = Color3.new(1, 1, 1)
-    textLabel.TextScaled = true
-    textLabel.Font = Enum.Font.SourceSansBold
-    textLabel.TextStrokeTransparency = 0
-    textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-    textLabel.ZIndex = 1001
-    textLabel.Parent = screenGui
-
-    print("TextLabel created successfully with game name: " .. gameName .. " and level: " .. level)
+    print("TextLabel created/updated with game name: " .. gameName .. " and level: " .. level)
+    
+    -- Theo dõi thay đổi level
+    if player:FindFirstChild("Data") and player.Data:FindFirstChild("Level") then
+        player.Data.Level.Changed:Connect(function(newLevel)
+            textLabel.Text = gameName .. " - Level: " .. tostring(newLevel)
+            print("TextLabel updated on level change: " .. tostring(newLevel))
+        end)
+    end
 end
 
 -- Tối ưu lần đầu và tạo TextLabel
@@ -186,20 +191,23 @@ spawn(function()
     end
 end)
 
--- Lặp tối ưu mỗi 600 giây và cập nhật level
+-- Lặp tối ưu mỗi 600 giây và cập nhật TextLabel
 spawn(function()
     while true do
         print("Starting periodic map optimization...")
         optimizeMap()
         if player.PlayerGui and player.PlayerGui:FindFirstChild("GameInfoLabel") then
             local level = checkPlayerLevel()
-            local textLabel = playerGui.GameInfoLabel:FindFirstChild("TextLabel")
+            local textLabel = player.PlayerGui.GameInfoLabel:FindFirstChild("TextLabel")
             if textLabel then
                 textLabel.Text = getGameNameByPlaceId(game.PlaceId) .. " - Level: " .. level
                 print("TextLabel updated with level: " .. level)
+            else
+                print("WARNING: TextLabel not found, recreating...")
+                createTextLabel()
             end
         else
-            print("WARNING: TextLabel not found, recreating...")
+            print("WARNING: GameInfoLabel not found, recreating...")
             createTextLabel()
         end
         wait(600)
