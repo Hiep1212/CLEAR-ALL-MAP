@@ -50,12 +50,11 @@ local function shouldClear(obj)
         if string.find(string.lower(obj.Name), string.lower(name)) or 
            (obj.Parent and string.find(string.lower(obj.Parent.Name), string.lower(name))) or 
            obj:IsA("Terrain") then
-            print("Kept excluded object: " .. obj.Name .. " (reason: excludeNames match)")
             return false
         end
     end
     -- Giữ block lớn, anchored (nền đảo) để không rớt nước
-    if obj:IsA("BasePart") and obj.CanCollide and obj.Anchored and obj.Size.Magnitude > 30 then
+    if obj:IsA("BasePart") and obj.CanCollide and obj.Anchored and obj.Size.Magnitude > 25 then
         print("Kept island block: " .. obj.Name .. " at " .. tostring(obj.Position))
         return false
     end
@@ -70,7 +69,6 @@ local function shouldClear(obj)
         return false
     end
     -- Clear tất cả còn lại (cây, nhà, Fruit, Boat, Ship, v.v.)
-    print("Will clear object: " .. obj.Name .. " at " .. tostring(obj.Position or obj:GetPivot().Position))
     return true
 end
 
@@ -88,13 +86,19 @@ local function clearObject(obj)
     end
 end
 
--- Hàm clear toàn map (tối giản)
+-- Hàm clear toàn map (tối giản, duyệt trực tiếp)
 local function clearMap()
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local total = 0
+        local cleared = 0
         for _, obj in pairs(Workspace:GetDescendants()) do
-            clearObject(obj)
+            total = total + 1
+            if shouldClear(obj) then
+                clearObject(obj)
+                cleared = cleared + 1
+            end
         end
-        print("Map cleared! All objects hidden/removed (including far islands), only large island blocks remain.")
+        print("Map cleared! Total objects: " .. total .. ", Cleared: " .. cleared)
     else
         print("Player not loaded, cannot clear map.")
         return
