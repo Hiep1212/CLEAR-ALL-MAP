@@ -6,21 +6,10 @@ print("Script started! Time: " .. os.date("%H:%M:%S")) -- Debug: Xác nhận scr
 
 local player = Players.LocalPlayer
 
--- Danh sách loại trừ (thu hẹp tối đa)
+-- Danh sách loại trừ (thu hẹp tối đa để clear mạnh)
 local excludeNames = {
-    "Terrain", "Quest", "Giver", "Board", "Bot", "Enemy", "Chest", "Treasure",
-    "IslandBase", "IslandFloor", "Main", "Floor", "Base"
+    "Terrain", "Quest", "Giver", "Board", "Bot", "Enemy", "Chest", "Treasure"
 }
-
--- In danh sách folder trong Workspace để debug cấu trúc
-local function debugWorkspaceStructure()
-    print("Workspace structure:")
-    for _, child in pairs(Workspace:GetChildren()) do
-        if child:IsA("Folder") or child:IsA("Model") then
-            print(" - " .. child.Name .. " (" .. child.ClassName .. ")")
-        end
-    end
-end
 
 -- Hàm ánh xạ Place ID sang tên game
 local function getGameNameByPlaceId(placeId)
@@ -51,71 +40,9 @@ local function checkPlayerLevel()
     return level
 end
 
--- Hàm check tên đảo player đang đứng
-local function getCurrentIsland()
-    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
-        print("ERROR: HumanoidRootPart not found for island check.")
-        return nil
-    end
-    local rootPart = player.Character.HumanoidRootPart
-    local ray = Ray.new(rootPart.Position, Vector3.new(0, -300, 0)) -- Tăng độ dài ray
-    local ignoreList = {player.Character}
-    local part = Workspace:FindPartOnRayWithIgnoreList(ray, ignoreList)
-    if part then
-        local island = part:FindFirstAncestorOfClass("Model")
-        local islandsFolder = Workspace:FindFirstChild("Islands") or Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("World")
-        if island and islandsFolder and island.Parent == islandsFolder then
-            print("Current island: " .. island.Name)
-            return island.Name:lower()
-        end
-    end
-    print("WARNING: Current island not detected.")
-    return nil
-end
-
--- Hàm điều chỉnh ngưỡng Size.Magnitude theo Place ID và đảo
-local function getIslandThreshold(obj, placeId)
-    local islandName = obj.Name:lower()
-    local parent = obj.Parent
-    while parent and parent ~= Workspace do
-        local islandsFolder = Workspace:FindFirstChild("Islands") or Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("World")
-        if islandsFolder and parent.Parent == islandsFolder then
-            islandName = parent.Name:lower()
-            break
-        end
-        parent = parent.Parent
-    end
-
-    if placeId == "2753915549" then  -- Sea 1
-        if string.find(islandName, "jungle") then
-            return 5  -- Block rất nhỏ cho Jungle
-        elseif string.find(islandName, "windmill") then
-            return 10  -- Block trung bình cho Windmill Village
-        elseif string.find(islandName, "marine") then
-            return 25  -- Block lớn cho Marine Starter
-        end
-    elseif placeId == "4442272183" then  -- Sea 2
-        if string.find(islandName, "marineford") then
-            return 35  -- Block lớn cho Marineford
-        elseif string.find(islandName, "desert") then
-            return 6  -- Block nhỏ cho Desert
-        elseif string.find(islandName, "dressrosa") then
-            return 15  -- Block trung bình cho Dressrosa
-        end
-    elseif placeId == "7449423635" then  -- Sea 3
-        if string.find(islandName, "skypiea") then
-            return 15  -- Block trung bình cho Skypiea
-        elseif string.find(islandName, "turtle") then
-            return 25  -- Block lớn cho Turtle Island
-        end
-    end
-    return 10  -- Mặc định cho các đảo khác
-end
-
--- Hàm kiểm tra xem object có nên xóa không
+-- Hàm kiểm tra xem object có nên xóa không (đơn giản, clear mạnh, không rớt nước)
 local function shouldClear(obj)
     if not obj or not obj.Parent then
-        print("Skipped null object or no parent: " .. tostring(obj))
         return false
     end
     -- Loại trừ Terrain, quest, bot, rương
@@ -127,21 +54,10 @@ local function shouldClear(obj)
             return false
         end
     end
-    -- Giữ block lớn, anchored của đảo player đang đứng
-    if obj:IsA("BasePart") and obj.CanCollide and obj.Anchored then
-        local currentIsland = getCurrentIsland()
-        local threshold = getIslandThreshold(obj, tostring(game.PlaceId))
-        local objIsland = obj.Parent
-        while objIsland and objIsland ~= Workspace do
-            local islandsFolder = Workspace:FindFirstChild("Islands") or Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("World")
-            if islandsFolder and objIsland.Parent == islandsFolder and objIsland.Name:lower() == currentIsland then
-                if obj.Size.Magnitude > threshold then
-                    print("Kept island block (threshold " .. threshold .. "): " .. obj.Name .. " at " .. tostring(obj.Position))
-                    return false
-                end
-            end
-            objIsland = objIsland.Parent
-        end
+    -- Giữ block lớn, anchored (nền đảo) để không rớt nước
+    if obj:IsA("BasePart") and obj.CanCollide and obj.Anchored and obj.Size.Magnitude > 30 then
+        print("Kept island block: " .. obj.Name .. " at " .. tostring(obj.Position))
+        return false
     end
     -- Giữ player và NPC quest/bot/quái (Model có Humanoid)
     if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
@@ -153,6 +69,7 @@ local function shouldClear(obj)
         print("Kept rương: " .. obj.Name)
         return false
     end
+    -- Clear tất cả còn lại (cây, nhà, Fruit, Boat, Ship, v.v.)
     print("Will clear object: " .. obj.Name .. " at " .. tostring(obj.Position or obj:GetPivot().Position))
     return true
 end
@@ -171,42 +88,17 @@ local function clearObject(obj)
     end
 end
 
--- Hàm clear toàn map
+-- Hàm clear toàn map (tối giản)
 local function clearMap()
-    if not Workspace then
-        print("ERROR: Workspace not found!")
-        return
-    end
-    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
-        print("ERROR: Player or HumanoidRootPart not loaded, cannot clear map.")
-        return
-    end
-
-    debugWorkspaceStructure() -- In cấu trúc Workspace
-    local totalObjects = 0
-    local keptObjects = 0
-    local removedObjects = 0
-    local objectsToClear = Workspace:GetDescendants()
-    local batchSize = 1000 -- Chia nhỏ để tránh timeout
-    local index = 1
-
-    print("Starting map clear, total objects to check: " .. #objectsToClear)
-    while index <= #objectsToClear do
-        local batchEnd = math.min(index + batchSize - 1, #objectsToClear)
-        for i = index, batchEnd do
-            local obj = objectsToClear[i]
-            totalObjects = totalObjects + 1
-            if shouldClear(obj) then
-                clearObject(obj)
-                removedObjects = removedObjects + 1
-            else
-                keptObjects = keptObjects + 1
-            end
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            clearObject(obj)
         end
-        index = index + batchSize
-        wait(0.1) -- Nghỉ ngắn để tránh timeout
+        print("Map cleared! All objects hidden/removed (including far islands), only large island blocks remain.")
+    else
+        print("Player not loaded, cannot clear map.")
+        return
     end
-    print(string.format("Map cleared! Total objects: %d, Kept: %d, Removed: %d", totalObjects, keptObjects, removedObjects))
 end
 
 -- Hàm tạo TextLabel hiển thị tên game và level
@@ -260,26 +152,18 @@ local function createTextLabel()
     print("TextLabel created successfully with game name: " .. gameName .. " and level: " .. level)
 end
 
--- Đợi game load đầy đủ
-game:GetService("RunService").Heartbeat:Wait()
-if not game:IsLoaded() then
-    print("Waiting for game to load...")
-    game.Loaded:Wait()
-end
-print("Game loaded! Time: " .. os.date("%H:%M:%S"))
-
 -- Clear lần đầu và tạo TextLabel
 spawn(function()
     player.CharacterAdded:Connect(function()
         player.Character:WaitForChild("HumanoidRootPart")
-        wait(10)  -- Đợi map load đầy đủ
+        wait(3)  -- Đợi map load đầy đủ
         print("Character loaded, starting initial clear...")
         clearMap()
         createTextLabel()
     end)
     
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        wait(10)  -- Đợi map load đầy đủ
+        wait(3)  -- Đợi map load đầy đủ
         print("Player loaded, starting initial clear...")
         clearMap()
         createTextLabel()
