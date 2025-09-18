@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
+local Debris = game:GetService("Debris")
 
 print("Script started! Time: " .. os.date("%H:%M:%S")) -- Debug: Xác nhận script chạy
 
@@ -13,11 +14,6 @@ local excludeNames = {
     "Melee", -- Melee
     "Fruit", "DevilFruit", "BloxFruit", -- Fruit
     "V3", "V4", "RaceV3", "RaceV4" -- Tộc V3/V4
-}
-
--- Danh sách thư mục nhắm đến để clear (cây, đá, nhà, Boat, Ship, đảo xa)
-local targetFolders = {
-    "Map", "Boats", "Ships", "Environment", "Buildings", "Decorations"
 }
 
 -- Hàm ánh xạ Place ID sang tên game
@@ -92,22 +88,22 @@ local function shouldClear(obj)
     return true
 end
 
--- Hàm xóa object (sử dụng :Remove() để thử vượt anti-cheat)
+-- Hàm xóa object (sử dụng Debris:AddItem để xóa an toàn)
 local function clearObject(obj)
     pcall(function()
         if (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) and shouldClear(obj) then
             if obj.Parent == Workspace or obj.Parent:IsDescendantOf(Workspace) then
-                obj:Remove()  -- Xóa BasePart
+                Debris:AddItem(obj, 0)  -- Xóa BasePart
                 print("Removed: " .. obj.Name .. " at " .. tostring(obj.Position))
             end
         elseif obj:IsA("Model") and shouldClear(obj) then
-            obj:Remove()  -- Xóa Model
+            Debris:AddItem(obj, 0)  -- Xóa Model
             print("Removed: " .. obj.Name .. " at " .. tostring(obj:GetPivot().Position))
         end
     end)
 end
 
--- Hàm clear map (duyệt thư mục cụ thể và GetDescendants)
+-- Hàm clear map (duyệt Workspace:GetChildren() để bắt hết object)
 local function clearMap()
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         print("ERROR: Player or HumanoidRootPart not loaded, cannot clear map.")
@@ -115,32 +111,6 @@ local function clearMap()
     end
     local total = 0
     local cleared = 0
-    
-    -- Duyệt các thư mục cụ thể (Map, Boats, Ships, v.v.)
-    for _, folderName in pairs(targetFolders) do
-        local folder = Workspace:FindFirstChild(folderName)
-        if folder then
-            print("Scanning folder: " .. folderName)
-            for _, obj in pairs(folder:GetChildren()) do
-                total = total + 1
-                if shouldClear(obj) then
-                    clearObject(obj)
-                    cleared = cleared + 1
-                end
-            end
-            for _, obj in pairs(folder:GetDescendants()) do
-                total = total + 1
-                if shouldClear(obj) then
-                    clearObject(obj)
-                    cleared = cleared + 1
-                end
-            end
-        else
-            print("WARNING: Folder " .. folderName .. " not found in Workspace")
-        end
-    end
-    
-    -- Duyệt thêm Workspace:GetChildren() để bắt các object ngoài thư mục
     for _, obj in pairs(Workspace:GetChildren()) do
         total = total + 1
         if shouldClear(obj) then
@@ -148,7 +118,13 @@ local function clearMap()
             cleared = cleared + 1
         end
     end
-    
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        total = total + 1
+        if shouldClear(obj) then
+            clearObject(obj)
+            cleared = cleared + 1
+        end
+    end
     print("Map cleared! Total objects: " .. total .. ", Cleared: " .. cleared)
 end
 
