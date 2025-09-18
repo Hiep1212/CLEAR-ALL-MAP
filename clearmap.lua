@@ -1,10 +1,19 @@
 local Players = game:GetService("Players")
-local Lighting = game:GetService("Lighting")
-local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
 print("Script started! Time: " .. os.date("%H:%M:%S")) -- Debug: Xác nhận script chạy
 
 local player = Players.LocalPlayer
+
+-- Danh sách loại trừ (giữ Súng, Kiếm, Melee, Fruit, Tộc V3/V4, Terrain, quest, bot, rương)
+local excludeNames = {
+    "Terrain", "Quest", "Giver", "Board", "Bot", "Enemy", "Chest", "Treasure",
+    "Gun", "Pistol", "Rifle", "Shotgun", -- Súng
+    "Sword", "Katana", "Blade", "Cutlass", -- Kiếm
+    "Melee", -- Melee
+    "Fruit", "DevilFruit", "BloxFruit", -- Fruit
+    "V3", "V4", "RaceV3", "RaceV4" -- Tộc V3/V4
+}
 
 -- Hàm ánh xạ Place ID sang tên game
 local function getGameNameByPlaceId(placeId)
@@ -35,24 +44,110 @@ local function checkPlayerLevel()
     return level
 end
 
--- Hàm tối ưu hiệu suất (tắt hiệu ứng nặng)
-local function optimizePerformance()
+-- Hàm kiểm tra xem object có nên xử lý không
+local function shouldProcess(obj)
+    if not obj or not obj.Parent then
+        return false
+    end
+    -- Loại trừ Terrain, quest, bot, rương, Súng, Kiếm, Melee, Fruit, Tộc V3/V4
+    for _, name in pairs(excludeNames) do
+        if string.find(string.lower(obj.Name), string.lower(name)) or 
+           (obj.Parent and string.find(string.lower(obj.Parent.Name), string.lower(name))) then
+            print("Kept excluded object: " .. obj.Name .. " (reason: excludeNames match)")
+            return false
+        end
+    end
+    -- Loại trừ Terrain
+    if obj:IsA("Terrain") then
+        print("Kept excluded object: " .. obj.Name .. " (reason: Terrain)")
+        return false
+    end
+    -- Giữ block lớn, anchored (nền đảo) để không rớt nước
+    if obj:IsA("BasePart") and obj.CanCollide and obj.Anchored and obj.Size.Magnitude > 25 then
+        print("Kept island block: " .. obj.Name .. " at " .. tostring(obj.Position))
+        return false
+    end
+    -- Giữ player và NPC quest/bot/quái (Model có Humanoid)
+    if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
+        print("Kept player/NPC quest/bot/quai: " .. obj.Name)
+        return false
+    end
+    -- Giữ rương (Model hoặc BasePart có ClickDetector)
+    if (obj:IsA("Model") or obj:IsA("BasePart")) and obj:FindFirstChildOfClass("ClickDetector") then
+        print("Kept rương: " .. obj.Name)
+        return false
+    end
+    -- Giữ vật phẩm cầm được (Tool hoặc có Handle)
+    if obj:IsA("Tool") or obj:FindFirstChild("Handle") then
+        print("Kept item/tool: " .. obj.Name .. " (reason: Tool or Handle)")
+        return false
+    end
+    -- Xử lý object vặt (cây, đá, nhà, Boat, Ship, v.v.)
+    print("Will process object: " .. obj.Name .. " at " .. tostring(obj.Position or obj:GetPivot().Position))
+    return true
+end
+
+-- Hàm xử lý object (ẩn, di chuyển, hoặc vô hiệu hóa)
+local function processObject(obj)
     pcall(function()
-        -- Tắt Shadows và Particles
-        Lighting.GlobalShadows = false
-        Lighting.FogEnd = 100000
-        for _, v in pairs(game:GetDescendants()) do
-            if v:IsA("ParticleEmitter") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
-                v.Enabled = false
-                print("Disabled effect: " .. v.Name)
+        if (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) and shouldProcess(obj) then
+            if obj.Parent == Workspace or obj.Parent:IsDescendantOf(Workspace) then
+                -- Thử ẩn bằng LocalTransparencyModifier
+                obj.LocalTransparencyModifier = 1
+                obj.CanCollide = false
+                print("Hidden: " .. obj.Name .. " at " .. tostring(obj.Position))
+                -- Nếu ẩn không được, thử di chuyển
+                if obj.LocalTransparencyModifier ~= 1 then
+                    obj.Position = Vector3.new(0, -1000, 0)
+                    print("Moved: " .. obj.Name .. " to " .. tostring(obj.Position))
+                    -- Nếu di chuyển không được, vô hiệu hóa rendering
+                    if obj.Position.Y > -500 then
+                        obj.Parent = nil
+                        print("Disabled rendering: " .. obj.Name)
+                    end
+                end
+            end
+        elseif obj:IsA("Model") and shouldProcess(obj) then
+            -- Xử lý tất cả BasePart trong Model
+            for _, part in pairs(obj:GetDescendants()) do
+                if part:IsA("BasePart") or part:IsA("MeshPart") or part:IsA("UnionOperation") then
+                    part.LocalTransparencyModifier = 1
+                    part.CanCollide = false
+                    print("Hidden: " .. part.Name .. " in Model " .. obj.Name .. " at " .. tostring(part.Position))
+                    if part.LocalTransparencyModifier ~= 1 then
+                        part.Position = Vector3.new(0, -1000, 0)
+                        print("Moved: " .. part.Name .. " in Model " .. obj.Name .. " to " .. tostring(part.Position))
+                        if part.Position.Y > -500 then
+                            part.Parent = nil
+                            print("Disabled rendering: " .. part.Name .. " in Model " .. obj.Name)
+                        end
+                    end
+                end
+                wait(0.02) -- Delay để né anti-cheat
             end
         end
-        -- Giảm chất lượng render
-        settings().Rendering.QualityLevel = 1
-        print("Performance optimized: Shadows OFF, Particles OFF, QualityLevel = 1")
+        wait(0.02) -- Delay để né anti-cheat
     end, function(err)
-        print("ERROR optimizing performance: " .. tostring(err))
+        print("ERROR processing object " .. obj.Name .. ": " .. tostring(err))
     end)
+end
+
+-- Hàm clear map (duyệt Workspace:GetChildren để nhẹ hơn)
+local function clearMap()
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+        print("ERROR: Player or HumanoidRootPart not loaded, cannot clear map.")
+        return
+    end
+    local total = 0
+    local processed = 0
+    for _, obj in pairs(Workspace:GetChildren()) do
+        total = total + 1
+        if shouldProcess(obj) then
+            processObject(obj)
+            processed = processed + 1
+        end
+    end
+    print("Map cleared! Total objects: " .. total .. ", Processed: " .. processed)
 end
 
 -- Hàm tạo và update TextLabel hiển thị tên game và level
@@ -111,31 +206,31 @@ local function createTextLabel()
     end
 end
 
--- Tối ưu lần đầu và tạo TextLabel
+-- Clear lần đầu và tạo TextLabel
 spawn(function()
     player.CharacterAdded:Connect(function()
         player.Character:WaitForChild("HumanoidRootPart")
-        wait(3)  -- Đợi game load đầy đủ
-        print("Character loaded, starting optimization...")
-        optimizePerformance()
+        wait(3)  -- Đợi map load đầy đủ
+        print("Character loaded, starting initial clear...")
+        clearMap()
         createTextLabel()
     end)
     
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        wait(3)  -- Đợi game load đầy đủ
-        print("Player loaded, starting optimization...")
-        optimizePerformance()
+        wait(3)  -- Đợi map load đầy đủ
+        print("Player loaded, starting initial clear...")
+        clearMap()
         createTextLabel()
     else
         print("ERROR: Player or HumanoidRootPart not loaded on start.")
     end
 end)
 
--- Lặp tối ưu mỗi 600 giây và cập nhật TextLabel
+-- Lặp clear mỗi 600 giây và cập nhật TextLabel
 spawn(function()
     while true do
-        print("Starting periodic optimization...")
-        optimizePerformance()
+        print("Starting periodic map clear...")
+        clearMap()
         if player.PlayerGui and player.PlayerGui:FindFirstChild("GameInfoLabel") then
             local level = checkPlayerLevel()
             local textLabel = player.PlayerGui.GameInfoLabel:FindFirstChild("TextLabel")
