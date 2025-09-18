@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 
 print("Script started! Time: " .. os.date("%H:%M:%S")) -- Debug: Xác nhận script chạy
@@ -60,15 +61,15 @@ local function shouldClear(obj)
     return true
 end
 
--- Hàm ẩn object client-side (Parent = nil tạm thời và vô hiệu hóa render)
+-- Hàm ẩn object client-side (Parent = Lighting và vô hiệu hóa render)
 local function clearObject(obj)
     pcall(function()
         if (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) and shouldClear(obj) then
             if obj.Parent == Workspace or obj.Parent:IsDescendantOf(Workspace) then
-                -- Lưu Parent gốc để khôi phục nếu cần
+                -- Lưu Parent gốc để khôi phục
                 local originalParent = obj.Parent
-                -- Tạm thời gỡ Parent (ẩn client-side)
-                obj.Parent = nil
+                -- Tạm thời chuyển Parent sang Lighting (ẩn client-side)
+                obj.Parent = Lighting
                 -- Vô hiệu hóa render
                 RunService:UnbindFromRenderStep(tostring(obj))
                 print("Hidden client-side: " .. obj.Name .. " at " .. tostring(obj.Position))
@@ -84,7 +85,7 @@ local function clearObject(obj)
             for _, part in pairs(obj:GetDescendants()) do
                 if part:IsA("BasePart") or part:IsA("MeshPart") or part:IsA("UnionOperation") then
                     local originalParent = part.Parent
-                    part.Parent = nil
+                    part.Parent = Lighting
                     RunService:UnbindFromRenderStep(tostring(part))
                     print("Hidden client-side: " .. part.Name .. " in Model " .. obj.Name .. " at " .. tostring(part.Position))
                     spawn(function()
