@@ -44,8 +44,8 @@ local function checkPlayerLevel()
     return level
 end
 
--- Hàm kiểm tra xem object có nên ẩn không
-local function shouldHide(obj)
+-- Hàm kiểm tra xem object có nên ẩn/di chuyển không
+local function shouldProcess(obj)
     if not obj or not obj.Parent then
         return false
     end
@@ -82,30 +82,43 @@ local function shouldHide(obj)
         print("Kept item/tool: " .. obj.Name .. " (reason: Tool or Handle)")
         return false
     end
-    -- Ẩn object vặt (cây, đá, nhà, Boat, Ship, v.v.)
-    print("Will hide object: " .. obj.Name .. " at " .. tostring(obj.Position or obj:GetPivot().Position))
+    -- Ẩn/di chuyển object vặt (cây, đá, nhà, Boat, Ship, v.v.)
+    print("Will process object: " .. obj.Name .. " at " .. tostring(obj.Position or obj:GetPivot().Position))
     return true
 end
 
--- Hàm ẩn object (làm trong suốt và vô hiệu hóa va chạm)
-local function hideObject(obj)
+-- Hàm ẩn hoặc di chuyển object
+local function processObject(obj)
     pcall(function()
-        if (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) and shouldHide(obj) then
+        if (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) and shouldProcess(obj) then
             if obj.Parent == Workspace or obj.Parent:IsDescendantOf(Workspace) then
-                obj.Transparency = 1  -- Làm trong suốt
-                obj.CanCollide = false  -- Vô hiệu hóa va chạm
+                -- Thử ẩn bằng LocalTransparencyModifier
+                obj.LocalTransparencyModifier = 1
+                obj.CanCollide = false
                 print("Hidden: " .. obj.Name .. " at " .. tostring(obj.Position))
+                -- Nếu ẩn không được, di chuyển ra khỏi tầm nhìn
+                if obj.LocalTransparencyModifier ~= 1 then
+                    obj.Position = Vector3.new(0, -1000, 0)
+                    print("Moved: " .. obj.Name .. " to " .. tostring(obj.Position))
+                end
             end
-        elseif obj:IsA("Model") and shouldHide(obj) then
-            -- Ẩn tất cả BasePart trong Model
+        elseif obj:IsA("Model") and shouldProcess(obj) then
+            -- Ẩn hoặc di chuyển tất cả BasePart trong Model
             for _, part in pairs(obj:GetDescendants()) do
                 if part:IsA("BasePart") or part:IsA("MeshPart") or part:IsA("UnionOperation") then
-                    part.Transparency = 1
+                    part.LocalTransparencyModifier = 1
                     part.CanCollide = false
                     print("Hidden: " .. part.Name .. " in Model " .. obj.Name .. " at " .. tostring(part.Position))
+                    if part.LocalTransparencyModifier ~= 1 then
+                        part.Position = Vector3.new(0, -1000, 0)
+                        print("Moved: " .. part.Name .. " in Model " .. obj.Name .. " to " .. tostring(part.Position))
+                    end
                 end
             end
         end
+        wait(0.01) -- Delay nhỏ để né anti-cheat
+    end, function(err)
+        print("ERROR processing object " .. obj.Name .. ": " .. tostring(err))
     end)
 end
 
@@ -116,15 +129,15 @@ local function clearMap()
         return
     end
     local total = 0
-    local hidden = 0
+    local processed = 0
     for _, obj in pairs(Workspace:GetChildren()) do
         total = total + 1
-        if shouldHide(obj) then
-            hideObject(obj)
-            hidden = hidden + 1
+        if shouldProcess(obj) then
+            processObject(obj)
+            processed = processed + 1
         end
     end
-    print("Map cleared! Total objects: " .. total .. ", Hidden: " .. hidden)
+    print("Map cleared! Total objects: " .. total .. ", Processed: " .. processed)
 end
 
 -- Hàm tạo và update TextLabel hiển thị tên game và level
@@ -182,6 +195,8 @@ local function createTextLabel()
         end)
     end
 end
+
+-- Clear lần đầu và tạo TextLabel
 spawn(function()
     player.CharacterAdded:Connect(function()
         player.Character:WaitForChild("HumanoidRootPart")
@@ -200,6 +215,8 @@ spawn(function()
         print("ERROR: Player or HumanoidRootPart not loaded on start.")
     end
 end)
+
+-- Lặp clear mỗi 600 giây và cập nhật TextLabel
 spawn(function()
     while true do
         print("Starting periodic map clear...")
