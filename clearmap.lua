@@ -1,6 +1,5 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
-local Debris = game:GetService("Debris")
 
 print("Script started! Time: " .. os.date("%H:%M:%S")) -- Debug: Xác nhận script chạy
 
@@ -45,8 +44,8 @@ local function checkPlayerLevel()
     return level
 end
 
--- Hàm kiểm tra xem object có nên xóa không
-local function shouldClear(obj)
+-- Hàm kiểm tra xem object có nên ẩn không
+local function shouldHide(obj)
     if not obj or not obj.Parent then
         return false
     end
@@ -83,49 +82,49 @@ local function shouldClear(obj)
         print("Kept item/tool: " .. obj.Name .. " (reason: Tool or Handle)")
         return false
     end
-    -- Xóa object vặt (cây, đá, nhà, Boat, Ship, v.v.)
-    print("Will clear object: " .. obj.Name .. " at " .. tostring(obj.Position or obj:GetPivot().Position))
+    -- Ẩn object vặt (cây, đá, nhà, Boat, Ship, v.v.)
+    print("Will hide object: " .. obj.Name .. " at " .. tostring(obj.Position or obj:GetPivot().Position))
     return true
 end
 
--- Hàm xóa object (sử dụng Debris:AddItem để xóa an toàn)
-local function clearObject(obj)
+-- Hàm ẩn object (làm trong suốt và vô hiệu hóa)
+local function hideObject(obj)
     pcall(function()
-        if (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) and shouldClear(obj) then
+        if (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) and shouldHide(obj) then
             if obj.Parent == Workspace or obj.Parent:IsDescendantOf(Workspace) then
-                Debris:AddItem(obj, 0)  -- Xóa BasePart
-                print("Removed: " .. obj.Name .. " at " .. tostring(obj.Position))
+                obj.Transparency = 1  -- Làm trong suốt
+                obj.CanCollide = false  -- Vô hiệu hóa va chạm
+                print("Hidden: " .. obj.Name .. " at " .. tostring(obj.Position))
             end
-        elseif obj:IsA("Model") and shouldClear(obj) then
-            Debris:AddItem(obj, 0)  -- Xóa Model
-            print("Removed: " .. obj.Name .. " at " .. tostring(obj:GetPivot().Position))
+        elseif obj:IsA("Model") and shouldHide(obj) then
+            -- Ẩn tất cả BasePart trong Model
+            for _, part in pairs(obj:GetDescendants()) do
+                if part:IsA("BasePart") or part:IsA("MeshPart") or part:IsA("UnionOperation") then
+                    part.Transparency = 1
+                    part.CanCollide = false
+                    print("Hidden: " .. part.Name .. " in Model " .. obj.Name .. " at " .. tostring(part.Position))
+                end
+            end
         end
     end)
 end
 
--- Hàm clear map (duyệt Workspace:GetChildren() để bắt hết object)
+-- Hàm clear map (duyệt Workspace:GetDescendants để bắt hết object)
 local function clearMap()
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         print("ERROR: Player or HumanoidRootPart not loaded, cannot clear map.")
         return
     end
     local total = 0
-    local cleared = 0
-    for _, obj in pairs(Workspace:GetChildren()) do
-        total = total + 1
-        if shouldClear(obj) then
-            clearObject(obj)
-            cleared = cleared + 1
-        end
-    end
+    local hidden = 0
     for _, obj in pairs(Workspace:GetDescendants()) do
         total = total + 1
-        if shouldClear(obj) then
-            clearObject(obj)
-            cleared = cleared + 1
+        if shouldHide(obj) then
+            hideObject(obj)
+            hidden = hidden + 1
         end
     end
-    print("Map cleared! Total objects: " .. total .. ", Cleared: " .. cleared)
+    print("Map cleared! Total objects: " .. total .. ", Hidden: " .. hidden)
 end
 
 -- Hàm tạo và update TextLabel hiển thị tên game và level
