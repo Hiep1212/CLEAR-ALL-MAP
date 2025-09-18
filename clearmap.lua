@@ -1,14 +1,19 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
+local Debris = game:GetService("Debris")
 
 print("Script started! Time: " .. os.date("%H:%M:%S")) -- Debug: Xác nhận script chạy
 
 local player = Players.LocalPlayer
 
--- Danh sách loại trừ (giữ Melee, Sword, Fruit, Terrain, quest, bot, rương)
+-- Danh sách loại trừ (giữ Súng, Kiếm, Melee, Fruit, Tộc V3/V4, Terrain, quest, bot, rương)
 local excludeNames = {
     "Terrain", "Quest", "Giver", "Board", "Bot", "Enemy", "Chest", "Treasure",
-    "Melee", "Sword", "Fruit", "DevilFruit", "BloxFruit"
+    "Gun", "Pistol", "Rifle", "Shotgun", -- Súng
+    "Sword", "Katana", "Blade", "Cutlass", -- Kiếm
+    "Melee", -- Melee
+    "Fruit", "DevilFruit", "BloxFruit", -- Fruit
+    "V3", "V4", "RaceV3", "RaceV4" -- Tộc V3/V4
 }
 
 -- Hàm ánh xạ Place ID sang tên game
@@ -40,12 +45,12 @@ local function checkPlayerLevel()
     return level
 end
 
--- Hàm kiểm tra xem object có nên làm trong suốt không
+-- Hàm kiểm tra xem object có nên xóa/làm trong suốt không
 local function shouldClear(obj)
     if not obj or not obj.Parent then
         return false
     end
-    -- Loại trừ Terrain, quest, bot, rương, Melee, Sword, Fruit
+    -- Loại trừ Terrain, quest, bot, rương, Súng, Kiếm, Melee, Fruit, Tộc V3/V4
     for _, name in pairs(excludeNames) do
         if string.find(string.lower(obj.Name), string.lower(name)) or 
            (obj.Parent and string.find(string.lower(obj.Parent.Name), string.lower(name))) or 
@@ -69,12 +74,12 @@ local function shouldClear(obj)
         print("Kept rương: " .. obj.Name)
         return false
     end
-    -- Làm trong suốt object vặt (cây, đá, nhà, Boat, Ship, v.v.)
-    print("Will hide object: " .. obj.Name .. " at " .. tostring(obj.Position or obj:GetPivot().Position))
+    -- Xóa/làm trong suốt object vặt (cây, đá, nhà, Boat, Ship, v.v.)
+    print("Will clear object: " .. obj.Name .. " at " .. tostring(obj.Position or obj:GetPivot().Position))
     return true
 end
 
--- Hàm làm trong suốt object (không xóa)
+-- Hàm xóa hoặc làm trong suốt object
 local function clearObject(obj)
     if (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) and shouldClear(obj) then
         if obj.Parent == Workspace or obj.Parent:IsDescendantOf(Workspace) then
@@ -83,36 +88,43 @@ local function clearObject(obj)
             print("Hidden: " .. obj.Name .. " at " .. tostring(obj.Position))
         end
     elseif obj:IsA("Model") and shouldClear(obj) then
-        -- Làm trong suốt các BasePart con trong Model
+        -- Kiểm tra xem Model có chứa Súng, Kiếm, Melee, Fruit, Tộc V3/V4 không
+        local hasExcluded = false
         for _, part in pairs(obj:GetDescendants()) do
-            if (part:IsA("BasePart") or part:IsA("MeshPart") or part:IsA("UnionOperation")) and 
-               not string.find(string.lower(part.Name), "melee") and 
-               not string.find(string.lower(part.Name), "sword") and 
-               not string.find(string.lower(part.Name), "fruit") then
-                part.Transparency = 1
-                part.CanCollide = false
-                print("Hidden part in Model: " .. part.Name .. " in " .. obj.Name)
+            if part:IsA("BasePart") or part:IsA("MeshPart") or part:IsA("UnionOperation") then
+                for _, name in pairs(excludeNames) do
+                    if string.find(string.lower(part.Name), string.lower(name)) then
+                        hasExcluded = true
+                        print("Kept Model containing excluded part: " .. part.Name .. " in " .. obj.Name)
+                        break
+                    end
+                end
+                if hasExcluded then break end
             end
+        end
+        if not hasExcluded then
+            Debris:AddItem(obj, 0)  -- Xóa Model
+            print("Removed: " .. obj.Name .. " at " .. tostring(obj:GetPivot().Position))
         end
     end
 end
 
--- Hàm tối ưu map (làm trong suốt object vặt, không xóa)
-local function optimizeMap()
+-- Hàm clear map (xóa mạnh, giữ thanh đồ người chơi)
+local function clearMap()
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
-        print("ERROR: Player or HumanoidRootPart not loaded, cannot optimize map.")
+        print("ERROR: Player or HumanoidRootPart not loaded, cannot clear map.")
         return
     end
     local total = 0
-    local hidden = 0
+    local cleared = 0
     for _, obj in pairs(Workspace:GetDescendants()) do
         total = total + 1
         if shouldClear(obj) then
             clearObject(obj)
-            hidden = hidden + 1
+            cleared = cleared + 1
         end
     end
-    print("Map optimized! Total objects: " .. total .. ", Hidden: " .. hidden)
+    print("Map cleared! Total objects: " .. total .. ", Cleared: " .. cleared)
 end
 
 -- Hàm tạo và update TextLabel hiển thị tên game và level
@@ -171,31 +183,31 @@ local function createTextLabel()
     end
 end
 
--- Tối ưu lần đầu và tạo TextLabel
+-- Clear lần đầu và tạo TextLabel
 spawn(function()
     player.CharacterAdded:Connect(function()
         player.Character:WaitForChild("HumanoidRootPart")
         wait(3)  -- Đợi map load đầy đủ
-        print("Character loaded, starting initial optimization...")
-        optimizeMap()
+        print("Character loaded, starting initial clear...")
+        clearMap()
         createTextLabel()
     end)
     
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
         wait(3)  -- Đợi map load đầy đủ
-        print("Player loaded, starting initial optimization...")
-        optimizeMap()
+        print("Player loaded, starting initial clear...")
+        clearMap()
         createTextLabel()
     else
         print("ERROR: Player or HumanoidRootPart not loaded on start.")
     end
 end)
 
--- Lặp tối ưu mỗi 600 giây và cập nhật TextLabel
+-- Lặp clear mỗi 600 giây và cập nhật TextLabel
 spawn(function()
     while true do
-        print("Starting periodic map optimization...")
-        optimizeMap()
+        print("Starting periodic map clear...")
+        clearMap()
         if player.PlayerGui and player.PlayerGui:FindFirstChild("GameInfoLabel") then
             local level = checkPlayerLevel()
             local textLabel = player.PlayerGui.GameInfoLabel:FindFirstChild("TextLabel")
