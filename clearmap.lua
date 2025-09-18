@@ -53,11 +53,15 @@ local function shouldClear(obj)
     -- Loại trừ Terrain, quest, bot, rương, Súng, Kiếm, Melee, Fruit, Tộc V3/V4
     for _, name in pairs(excludeNames) do
         if string.find(string.lower(obj.Name), string.lower(name)) or 
-           (obj.Parent and string.find(string.lower(obj.Parent.Name), string.lower(name))) or 
-           obj:IsA("Terrain") then
+           (obj.Parent and string.find(string.lower(obj.Parent.Name), string.lower(name))) then
             print("Kept excluded object: " .. obj.Name .. " (reason: excludeNames match)")
             return false
         end
+    end
+    -- Loại trừ Terrain
+    if obj:IsA("Terrain") then
+        print("Kept excluded object: " .. obj.Name .. " (reason: Terrain)")
+        return false
     end
     -- Giữ block lớn, anchored (nền đảo) để không rớt nước
     if obj:IsA("BasePart") and obj.CanCollide and obj.Anchored and obj.Size.Magnitude > 25 then
@@ -91,16 +95,14 @@ local function clearObject(obj)
         -- Kiểm tra xem Model có chứa Súng, Kiếm, Melee, Fruit, Tộc V3/V4 không
         local hasExcluded = false
         for _, part in pairs(obj:GetDescendants()) do
-            if part:IsA("BasePart") or part:IsA("MeshPart") or part:IsA("UnionOperation") then
-                for _, name in pairs(excludeNames) do
-                    if string.find(string.lower(part.Name), string.lower(name)) then
-                        hasExcluded = true
-                        print("Kept Model containing excluded part: " .. part.Name .. " in " .. obj.Name)
-                        break
-                    end
+            for _, name in pairs(excludeNames) do
+                if string.find(string.lower(part.Name), string.lower(name)) then
+                    hasExcluded = true
+                    print("Kept Model containing excluded part: " .. part.Name .. " in " .. obj.Name)
+                    break
                 end
-                if hasExcluded then break end
             end
+            if hasExcluded then break end
         end
         if not hasExcluded then
             Debris:AddItem(obj, 0)  -- Xóa Model
@@ -109,7 +111,7 @@ local function clearObject(obj)
     end
 end
 
--- Hàm clear map (xóa mạnh, giữ thanh đồ người chơi)
+-- Hàm clear map (duyệt Workspace:GetChildren() để tránh anti-cheat)
 local function clearMap()
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         print("ERROR: Player or HumanoidRootPart not loaded, cannot clear map.")
@@ -117,7 +119,7 @@ local function clearMap()
     end
     local total = 0
     local cleared = 0
-    for _, obj in pairs(Workspace:GetDescendants()) do
+    for _, obj in pairs(Workspace:GetChildren()) do
         total = total + 1
         if shouldClear(obj) then
             clearObject(obj)
