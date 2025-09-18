@@ -1,9 +1,13 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
-local MaterialService = game:GetService("MaterialService")
+local RunService = game:GetService("RunService")
+
 print("Script started! Time: " .. os.date("%H:%M:%S")) -- Debug: Xác nhận script chạy
+
 local player = Players.LocalPlayer
 local clearRadius = math.huge  -- Bán kính vô cực (ẩn cả map)
+
+-- Danh sách loại trừ (thu hẹp để ẩn mạnh)
 local excludeNames = {
     "Terrain", "Quest", "Giver", "Board", "Bot", "Enemy", "Chest", "Treasure",
     "Gun", "Pistol", "Rifle", "Shotgun", -- Súng
@@ -12,6 +16,8 @@ local excludeNames = {
     "Fruit", "DevilFruit", "BloxFruit", -- Fruit
     "V3", "V4", "RaceV3", "RaceV4" -- Tộc V3/V4
 }
+
+-- Hàm kiểm tra xem object có nên ẩn không
 local function shouldClear(obj)
     if not obj or not obj.Parent then
         return false
@@ -24,60 +30,68 @@ local function shouldClear(obj)
             return false
         end
     end
+    -- Loại trừ Terrain
     if obj:IsA("Terrain") then
         print("Kept excluded object: " .. obj.Name .. " (reason: Terrain)")
         return false
     end
+    -- Giữ block lớn, anchored (nền đảo) để không rớt nước
     if obj:IsA("BasePart") and obj.CanCollide and obj.Anchored and obj.Size.Magnitude > 20 then
         print("Kept island block: " .. obj.Name .. " at " .. tostring(obj.Position))
         return false
     end
+    -- Giữ player và NPC quest/bot/quái (Model có Humanoid)
     if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
         print("Kept player/NPC quest/bot/quai: " .. obj.Name)
         return false
     end
+    -- Giữ rương (Model hoặc BasePart có ClickDetector)
     if (obj:IsA("Model") or obj:IsA("BasePart")) and obj:FindFirstChildOfClass("ClickDetector") then
         print("Kept rương: " .. obj.Name)
         return false
     end
+    -- Giữ vật phẩm cầm được (Tool hoặc có Handle)
     if obj:IsA("Tool") or obj:FindFirstChild("Handle") then
         print("Kept item/tool: " .. obj.Name .. " (reason: Tool or Handle)")
         return false
     end
+    -- Ẩn object vặt (cây, đá, nhà, Boat, Ship, v.v.)
     print("Will hide object: " .. obj.Name .. " at " .. tostring(obj.Position or obj:GetPivot().Position))
     return true
 end
+
+-- Hàm ẩn object client-side (Parent = nil tạm thời và vô hiệu hóa render)
 local function clearObject(obj)
     pcall(function()
         if (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) and shouldClear(obj) then
             if obj.Parent == Workspace or obj.Parent:IsDescendantOf(Workspace) then
-                -- Ẩn bằng LocalTransparencyModifier
-                obj.LocalTransparencyModifier = 1
-                -- Giảm RenderPriority để không render client-side
-                obj.RenderPriority = Enum.RenderPriority.Camera.Value - 1
-                -- Đặt MaterialVariant ẩn (nếu có MaterialService)
-                if MaterialService then
-                    local materialVariant = Instance.new("MaterialVariant")
-                    materialVariant.Name = "HiddenMaterial"
-                    materialVariant.BaseMaterial = obj.Material
-                    materialVariant.Transparency = 1
-                    materialVariant.Parent = obj
-                end
+                -- Lưu Parent gốc để khôi phục nếu cần
+                local originalParent = obj.Parent
+                -- Tạm thời gỡ Parent (ẩn client-side)
+                obj.Parent = nil
+                -- Vô hiệu hóa render
+                RunService:UnbindFromRenderStep(tostring(obj))
                 print("Hidden client-side: " .. obj.Name .. " at " .. tostring(obj.Position))
+                -- Khôi phục Parent sau 1 giây để giữ va chạm server-side
+                spawn(function()
+                    wait(1)
+                    obj.Parent = originalParent
+                    print("Restored parent for: " .. obj.Name)
+                end)
             end
         elseif obj:IsA("Model") and shouldClear(obj) then
+            -- Ẩn tất cả BasePart trong Model
             for _, part in pairs(obj:GetDescendants()) do
                 if part:IsA("BasePart") or part:IsA("MeshPart") or part:IsA("UnionOperation") then
-                    part.LocalTransparencyModifier = 1
-                    part.RenderPriority = Enum.RenderPriority.Camera.Value - 1
-                    if MaterialService then
-                        local materialVariant = Instance.new("MaterialVariant")
-                        materialVariant.Name = "HiddenMaterial"
-                        materialVariant.BaseMaterial = part.Material
-                        materialVariant.Transparency = 1
-                        materialVariant.Parent = part
-                    end
+                    local originalParent = part.Parent
+                    part.Parent = nil
+                    RunService:UnbindFromRenderStep(tostring(part))
                     print("Hidden client-side: " .. part.Name .. " in Model " .. obj.Name .. " at " .. tostring(part.Position))
+                    spawn(function()
+                        wait(1)
+                        part.Parent = originalParent
+                        print("Restored parent for: " .. part.Name .. " in Model " .. obj.Name)
+                    end)
                 end
                 wait(0.02) -- Delay để né anti-cheat
             end
@@ -88,6 +102,7 @@ local function clearObject(obj)
     end)
 end
 
+-- Hàm ánh xạ Place ID sang tên game
 local function getGameNameByPlaceId(placeId)
     local gameNames = {
         ["2753915549"] = "BLOX FRUIT SEA 1",
@@ -98,6 +113,8 @@ local function getGameNameByPlaceId(placeId)
     }
     return gameNames[tostring(placeId)] or "Unknown Game"
 end
+
+-- Hàm check level cho Blox Fruits
 local function checkPlayerLevel()
     local placeId = tostring(game.PlaceId)
     local isBloxFruits = placeId == "2753915549" or placeId == "4442272183" or placeId == "7449423635"
@@ -115,6 +132,8 @@ local function checkPlayerLevel()
     end
     return level
 end
+
+-- Hàm tạo và update TextLabel
 local function createTextLabel()
     local placeId = game.PlaceId
     local gameName = getGameNameByPlaceId(placeId)
@@ -164,6 +183,8 @@ local function createTextLabel()
     textLabel.Parent = screenGui
 
     print("TextLabel created with game name: " .. gameName .. " and level: " .. level)
+    
+    -- Theo dõi thay đổi level
     if player:FindFirstChild("Data") and player.Data:FindFirstChild("Level") then
         player.Data.Level.Changed:Connect(function(newLevel)
             textLabel.Text = gameName .. " - Level: " .. tostring(newLevel)
@@ -171,6 +192,8 @@ local function createTextLabel()
         end)
     end
 end
+
+-- Hàm clear map (ẩn client-side mạnh)
 local function clearMap()
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         print("ERROR: Player or HumanoidRootPart not loaded, cannot clear map.")
@@ -187,6 +210,8 @@ local function clearMap()
     end
     print("Map cleared! Total objects: " .. total .. ", Processed: " .. processed)
 end
+
+-- Clear lần đầu và tạo TextLabel
 spawn(function()
     player.CharacterAdded:Connect(function()
         player.Character:WaitForChild("HumanoidRootPart")
@@ -206,6 +231,7 @@ spawn(function()
     end
 end)
 
+-- Lặp clear mỗi 600 giây và cập nhật TextLabel
 spawn(function()
     while true do
         print("Starting periodic map clear...")
