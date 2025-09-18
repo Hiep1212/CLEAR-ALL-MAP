@@ -82,38 +82,22 @@ local function shouldClear(obj)
     return true
 end
 
--- Hàm xóa hoặc làm trong suốt object
+-- Hàm xóa object (sử dụng :Destroy() để xóa mạnh)
 local function clearObject(obj)
-    if (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) and shouldClear(obj) then
-        if obj.Parent == Workspace or obj.Parent:IsDescendantOf(Workspace) then
-            pcall(function()
-                obj:Destroy()  -- Xóa mạnh BasePart
+    pcall(function()
+        if (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) and shouldClear(obj) then
+            if obj.Parent == Workspace or obj.Parent:IsDescendantOf(Workspace) then
+                obj:Destroy()  -- Xóa BasePart
                 print("Removed: " .. obj.Name .. " at " .. tostring(obj.Position))
-            end)
-        end
-    elseif obj:IsA("Model") and shouldClear(obj) then
-        -- Kiểm tra xem Model có chứa Súng, Kiếm, Melee, Fruit, Tộc V3/V4 không
-        local hasExcluded = false
-        for _, part in pairs(obj:GetDescendants()) do
-            for _, name in pairs(excludeNames) do
-                if string.find(string.lower(part.Name), string.lower(name)) then
-                    hasExcluded = true
-                    print("Kept Model containing excluded part: " .. part.Name .. " in " .. obj.Name)
-                    break
-                end
             end
-            if hasExcluded then break end
+        elseif obj:IsA("Model") and shouldClear(obj) then
+            obj:Destroy()  -- Xóa Model
+            print("Removed: " .. obj.Name .. " at " .. tostring(obj:GetPivot().Position))
         end
-        if not hasExcluded then
-            pcall(function()
-                obj:Destroy()  -- Xóa mạnh Model
-                print("Removed: " .. obj.Name .. " at " .. tostring(obj:GetPivot().Position))
-            end)
-        end
-    end
+    end)
 end
 
--- Hàm clear map (duyệt cả GetChildren và GetDescendants để bắt hết object)
+-- Hàm clear map (duyệt Workspace:GetChildren() để bắt hết object)
 local function clearMap()
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         print("ERROR: Player or HumanoidRootPart not loaded, cannot clear map.")
@@ -121,7 +105,6 @@ local function clearMap()
     end
     local total = 0
     local cleared = 0
-    -- Duyệt GetChildren trước
     for _, obj in pairs(Workspace:GetChildren()) do
         total = total + 1
         if shouldClear(obj) then
@@ -129,7 +112,6 @@ local function clearMap()
             cleared = cleared + 1
         end
     end
-    -- Duyệt GetDescendants để bắt các object lồng sâu
     for _, obj in pairs(Workspace:GetDescendants()) do
         total = total + 1
         if shouldClear(obj) then
