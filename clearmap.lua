@@ -1,6 +1,5 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
-local Debris = game:GetService("Debris")
 
 print("Script started! Time: " .. os.date("%H:%M:%S")) -- Debug: Xác nhận script chạy
 
@@ -45,7 +44,7 @@ local function checkPlayerLevel()
     return level
 end
 
--- Hàm kiểm tra xem object có nên xóa/làm trong suốt không
+-- Hàm kiểm tra xem object có nên xóa không
 local function shouldClear(obj)
     if not obj or not obj.Parent then
         return false
@@ -78,7 +77,7 @@ local function shouldClear(obj)
         print("Kept rương: " .. obj.Name)
         return false
     end
-    -- Xóa/làm trong suốt object vặt (cây, đá, nhà, Boat, Ship, v.v.)
+    -- Xóa object vặt (cây, đá, nhà, Boat, Ship, v.v.)
     print("Will clear object: " .. obj.Name .. " at " .. tostring(obj.Position or obj:GetPivot().Position))
     return true
 end
@@ -87,9 +86,10 @@ end
 local function clearObject(obj)
     if (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) and shouldClear(obj) then
         if obj.Parent == Workspace or obj.Parent:IsDescendantOf(Workspace) then
-            obj.Transparency = 1  -- Làm trong suốt
-            obj.CanCollide = false  -- Không va chạm
-            print("Hidden: " .. obj.Name .. " at " .. tostring(obj.Position))
+            pcall(function()
+                obj:Destroy()  -- Xóa mạnh BasePart
+                print("Removed: " .. obj.Name .. " at " .. tostring(obj.Position))
+            end)
         end
     elseif obj:IsA("Model") and shouldClear(obj) then
         -- Kiểm tra xem Model có chứa Súng, Kiếm, Melee, Fruit, Tộc V3/V4 không
@@ -105,13 +105,15 @@ local function clearObject(obj)
             if hasExcluded then break end
         end
         if not hasExcluded then
-            Debris:AddItem(obj, 0)  -- Xóa Model
-            print("Removed: " .. obj.Name .. " at " .. tostring(obj:GetPivot().Position))
+            pcall(function()
+                obj:Destroy()  -- Xóa mạnh Model
+                print("Removed: " .. obj.Name .. " at " .. tostring(obj:GetPivot().Position))
+            end)
         end
     end
 end
 
--- Hàm clear map (duyệt Workspace:GetChildren() để tránh anti-cheat)
+-- Hàm clear map (duyệt cả GetChildren và GetDescendants để bắt hết object)
 local function clearMap()
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         print("ERROR: Player or HumanoidRootPart not loaded, cannot clear map.")
@@ -119,7 +121,16 @@ local function clearMap()
     end
     local total = 0
     local cleared = 0
+    -- Duyệt GetChildren trước
     for _, obj in pairs(Workspace:GetChildren()) do
+        total = total + 1
+        if shouldClear(obj) then
+            clearObject(obj)
+            cleared = cleared + 1
+        end
+    end
+    -- Duyệt GetDescendants để bắt các object lồng sâu
+    for _, obj in pairs(Workspace:GetDescendants()) do
         total = total + 1
         if shouldClear(obj) then
             clearObject(obj)
