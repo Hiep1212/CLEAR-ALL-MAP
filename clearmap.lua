@@ -87,7 +87,7 @@ local function shouldHide(obj)
     return true
 end
 
--- Hàm ẩn object (làm trong suốt và vô hiệu hóa)
+-- Hàm ẩn object (làm trong suốt và vô hiệu hóa va chạm)
 local function hideObject(obj)
     pcall(function()
         if (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) and shouldHide(obj) then
@@ -109,7 +109,7 @@ local function hideObject(obj)
     end)
 end
 
--- Hàm clear map (duyệt Workspace:GetDescendants để bắt hết object)
+-- Hàm clear map (duyệt Workspace:GetChildren để nhẹ hơn)
 local function clearMap()
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         print("ERROR: Player or HumanoidRootPart not loaded, cannot clear map.")
@@ -117,7 +117,7 @@ local function clearMap()
     end
     local total = 0
     local hidden = 0
-    for _, obj in pairs(Workspace:GetDescendants()) do
+    for _, obj in pairs(Workspace:GetChildren()) do
         total = total + 1
         if shouldHide(obj) then
             hideObject(obj)
@@ -182,8 +182,6 @@ local function createTextLabel()
         end)
     end
 end
-
--- Clear lần đầu và tạo TextLabel
 spawn(function()
     player.CharacterAdded:Connect(function()
         player.Character:WaitForChild("HumanoidRootPart")
@@ -202,8 +200,6 @@ spawn(function()
         print("ERROR: Player or HumanoidRootPart not loaded on start.")
     end
 end)
-
--- Lặp clear mỗi 600 giây và cập nhật TextLabel
 spawn(function()
     while true do
         print("Starting periodic map clear...")
