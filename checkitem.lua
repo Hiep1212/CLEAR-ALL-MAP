@@ -105,11 +105,10 @@ local function updateGui(mainFrame)
         local itemLabel = mainFrame:FindFirstChild(itemName .. "Label")
         if itemLabel then
             local hasItem = checkInventoryForItem(itemName)
+            itemLabel.TextColor3 = Color3.new(1, 1, 1) -- Chữ trắng
             if hasItem then
-                itemLabel.TextColor3 = Color3.new(0, 1, 0)
                 itemLabel.Text = itemName .. " 🟢"
             else
-                itemLabel.TextColor3 = Color3.new(1, 0, 0)
                 itemLabel.Text = itemName .. " 🔴"
             end
             print("Updated " .. itemName .. "Label: " .. itemLabel.Text)
@@ -117,8 +116,8 @@ local function updateGui(mainFrame)
     end
 end
 
--- Hàm tạo GUI trong suốt ở giữa màn hình
-local function createTransparentGui()
+-- Hàm tạo bảng đen và GUI ở giữa màn hình
+local function createBlackScreenAndChecker()
     local maxWaitTime = 15
     local waitTime = 0
     while not player:FindFirstChild("PlayerGui") and waitTime < maxWaitTime do
@@ -133,23 +132,37 @@ local function createTransparentGui()
     end
     
     -- Tạo ScreenGui
-    local screenGui = playerGui:FindFirstChild("TransparentGui")
+    local screenGui = playerGui:FindFirstChild("BlackScreenGui")
     if not screenGui then
         screenGui = Instance.new("ScreenGui")
-        screenGui.Name = "TransparentGui"
+        screenGui.Name = "BlackScreenGui"
         screenGui.IgnoreGuiInset = true
         screenGui.ResetOnSpawn = false
         screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
         screenGui.Parent = playerGui
-        print("Created ScreenGui: TransparentGui")
+        print("Created ScreenGui: BlackScreenGui")
     end
     
-    -- Tạo Frame trong suốt ở giữa màn hình
+    -- Tạo Frame đen che màn hình
+    local blackFrame = screenGui:FindFirstChild("BlackFrame")
+    if not blackFrame then
+        blackFrame = Instance.new("Frame")
+        blackFrame.Name = "BlackFrame"
+        blackFrame.Size = UDim2.new(1, 0, 1, 0)
+        blackFrame.Position = UDim2.new(0, 0, 0, 0)
+        blackFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+        blackFrame.BackgroundTransparency = 0
+        blackFrame.ZIndex = 1000
+        blackFrame.Parent = screenGui
+        print("Created black frame to cover screen")
+    end
+    
+    -- Tạo Frame cho GUI ở giữa màn hình
     local mainFrame = screenGui:FindFirstChild("MainFrame")
     if not mainFrame then
         mainFrame = Instance.new("Frame")
         mainFrame.Name = "MainFrame"
-        mainFrame.Size = UDim2.new(1, 0, 0.3, 0)
+        mainFrame.Size = UDim2.new(1, 0, 0.4, 0)
         mainFrame.Position = UDim2.new(0, 0, 0.45, 0) -- Giữa màn hình
         mainFrame.BackgroundTransparency = 1
         mainFrame.ZIndex = 1001
@@ -157,21 +170,23 @@ local function createTransparentGui()
         print("Created MainFrame for item and level checker in center")
     end
     
-    -- Tạo TextLabel cho title
+    -- Tạo TextLabel cho tên game
     local titleLabel = mainFrame:FindFirstChild("TitleLabel")
     if not titleLabel then
         titleLabel = Instance.new("TextLabel")
         titleLabel.Name = "TitleLabel"
-        titleLabel.Size = UDim2.new(1, 0, 0, 40)
+        titleLabel.Size = UDim2.new(0.5, 0, 0, 50)
         titleLabel.Position = UDim2.new(0, 0, 0, 0)
         titleLabel.BackgroundTransparency = 1
         titleLabel.Text = getGameNameByPlaceId(game.PlaceId)
-        titleLabel.TextColor3 = Color3.new(1, 1, 1)
+        titleLabel.TextColor3 = Color3.new(1, 1, 1) -- Chữ trắng
         titleLabel.TextScaled = true
+        titleLabel.TextSize = 40 -- Chữ to
         titleLabel.Font = Enum.Font.SourceSansBold
         titleLabel.TextStrokeTransparency = 0
         titleLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
         titleLabel.ZIndex = 1002
+        titleLabel.TextXAlignment = Enum.TextXAlignment.Left
         titleLabel.Parent = mainFrame
         print("Created TitleLabel: " .. titleLabel.Text)
     end
@@ -181,16 +196,18 @@ local function createTransparentGui()
     if not levelLabel then
         levelLabel = Instance.new("TextLabel")
         levelLabel.Name = "LevelLabel"
-        levelLabel.Size = UDim2.new(1, 0, 0, 30)
-        levelLabel.Position = UDim2.new(0, 0, 0, 40)
+        levelLabel.Size = UDim2.new(0.5, 0, 0, 50)
+        levelLabel.Position = UDim2.new(0.5, 0, 0, 0)
         levelLabel.BackgroundTransparency = 1
         levelLabel.Text = "Level: " .. checkPlayerLevel()
-        levelLabel.TextColor3 = Color3.new(1, 1, 1)
+        levelLabel.TextColor3 = Color3.new(1, 1, 1) -- Chữ trắng
         levelLabel.TextScaled = true
-        levelLabel.Font = Enum.Font.SourceSans
+        levelLabel.TextSize = 40 -- Chữ to
+        levelLabel.Font = Enum.Font.SourceSansBold
         levelLabel.TextStrokeTransparency = 0
         levelLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
         levelLabel.ZIndex = 1002
+        levelLabel.TextXAlignment = Enum.TextXAlignment.Right
         levelLabel.Parent = mainFrame
         print("Created LevelLabel: " .. levelLabel.Text)
     end
@@ -202,11 +219,11 @@ local function createTransparentGui()
             itemLabel = Instance.new("TextLabel")
             itemLabel.Name = itemName .. "Label"
             itemLabel.Size = UDim2.new(1, 0, 0, 30)
-            itemLabel.Position = UDim2.new(0, 0, 0, 70 + (i-1)*30)
+            itemLabel.Position = UDim2.new(0, 0, 0, 60 + (i-1)*30)
             itemLabel.BackgroundTransparency = 1
-            itemLabel.Text = itemName
-            itemLabel.TextColor3 = Color3.new(1, 1, 1)
+            itemLabel.TextColor3 = Color3.new(1, 1, 1) -- Chữ trắng
             itemLabel.TextScaled = true
+            itemLabel.TextSize = 24 -- Chữ vừa đủ
             itemLabel.Font = Enum.Font.SourceSans
             itemLabel.TextStrokeTransparency = 0
             itemLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
@@ -252,7 +269,7 @@ local function createTransparentGui()
         end)
     end)
     
-    print("Transparent GUI created/updated in center")
+    print("Black screen and adjusted GUI created/updated in center")
 end
 
 -- Tối ưu và tạo GUI lần đầu
@@ -262,14 +279,14 @@ spawn(function()
         wait(3)
         print("Character loaded, starting optimization and GUI creation...")
         optimizePerformance()
-        createTransparentGui()
+        createBlackScreenAndChecker()
     end)
     
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
         wait(3)
         print("Player loaded, starting optimization and GUI creation...")
         optimizePerformance()
-        createTransparentGui()
+        createBlackScreenAndChecker()
     else
         print("ERROR: Player or HumanoidRootPart not loaded on start.")
     end
@@ -283,4 +300,4 @@ spawn(function()
     end
 end)
 
-print("Transparent GUI script running. Check GUI in center of screen with real-time updates for level and items!")
+print("Black screen and adjusted GUI script running. Check black screen and GUI in center with large game name + level, smaller items, all white text!")
