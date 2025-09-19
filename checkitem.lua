@@ -46,30 +46,33 @@ end
 
 -- Hàm check inventory có item không
 local function checkInventoryForItem(itemName)
+    local hasItem = false
     pcall(function()
-        -- Check trong Character
         if player.Character and player.Character:FindFirstChild("Humanoid") then
             for _, tool in pairs(player.Character:GetChildren()) do
                 if tool:IsA("Tool") and (string.find(string.lower(tool.Name), string.lower(itemName)) or tool.Name == itemName) then
+                    hasItem = true
                     print("Found item in Character: " .. itemName)
-                    return true
+                    return
                 end
             end
         end
-        -- Check trong Backpack
         if player:FindFirstChild("Backpack") then
             for _, tool in pairs(player.Backpack:GetChildren()) do
                 if tool:IsA("Tool") and (string.find(string.lower(tool.Name), string.lower(itemName)) or tool.Name == itemName) then
+                    hasItem = true
                     print("Found item in Backpack: " .. itemName)
-                    return true
+                    return
                 end
             end
         end
     end, function(err)
         print("ERROR checking inventory for " .. itemName .. ": " .. tostring(err))
     end)
-    print("Item not found: " .. itemName)
-    return false
+    if not hasItem then
+        print("Item not found: " .. itemName)
+    end
+    return hasItem
 end
 
 -- Hàm tối ưu hiệu suất
@@ -90,9 +93,33 @@ local function optimizePerformance()
     end)
 end
 
--- Hàm tạo bảng đen và GUI check items + level
-local function createBlackScreenAndChecker()
-    local maxWaitTime = 15 -- Tăng thời gian đợi PlayerGui
+-- Hàm update GUI
+local function updateGui(mainFrame)
+    local levelLabel = mainFrame:FindFirstChild("LevelLabel")
+    if levelLabel then
+        levelLabel.Text = "Level: " .. checkPlayerLevel()
+        print("Updated LevelLabel: " .. levelLabel.Text)
+    end
+    
+    for _, itemName in pairs(itemsToCheck) do
+        local itemLabel = mainFrame:FindFirstChild(itemName .. "Label")
+        if itemLabel then
+            local hasItem = checkInventoryForItem(itemName)
+            if hasItem then
+                itemLabel.TextColor3 = Color3.new(0, 1, 0)
+                itemLabel.Text = itemName .. " 🟢"
+            else
+                itemLabel.TextColor3 = Color3.new(1, 0, 0)
+                itemLabel.Text = itemName .. " 🔴"
+            end
+            print("Updated " .. itemName .. "Label: " .. itemLabel.Text)
+        end
+    end
+end
+
+-- Hàm tạo GUI trong suốt ở giữa màn hình
+local function createTransparentGui()
+    local maxWaitTime = 15
     local waitTime = 0
     while not player:FindFirstChild("PlayerGui") and waitTime < maxWaitTime do
         wait(0.5)
@@ -106,48 +133,28 @@ local function createBlackScreenAndChecker()
     end
     
     -- Tạo ScreenGui
-    local screenGui = playerGui:FindFirstChild("BlackScreenGui")
+    local screenGui = playerGui:FindFirstChild("TransparentGui")
     if not screenGui then
         screenGui = Instance.new("ScreenGui")
-        screenGui.Name = "BlackScreenGui"
+        screenGui.Name = "TransparentGui"
         screenGui.IgnoreGuiInset = true
         screenGui.ResetOnSpawn = false
         screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
         screenGui.Parent = playerGui
-        print("Created ScreenGui: BlackScreenGui")
+        print("Created ScreenGui: TransparentGui")
     end
     
-    -- Tạo Frame đen che màn hình
-    local blackFrame = screenGui:FindFirstChild("BlackFrame")
-    if not blackFrame then
-        blackFrame = Instance.new("Frame")
-        blackFrame.Name = "BlackFrame"
-        blackFrame.Size = UDim2.new(1, 0, 1, 0)
-        blackFrame.Position = UDim2.new(0, 0, 0, 0)
-        blackFrame.BackgroundColor3 = Color3.new(0, 0, 0)
-        blackFrame.BackgroundTransparency = 0
-        blackFrame.ZIndex = 1000
-        blackFrame.Parent = screenGui
-        print("Created black frame to cover screen")
-    end
-    
-    -- Tạo Frame cho GUI check items + level
+    -- Tạo Frame trong suốt ở giữa màn hình
     local mainFrame = screenGui:FindFirstChild("MainFrame")
     if not mainFrame then
         mainFrame = Instance.new("Frame")
         mainFrame.Name = "MainFrame"
-        mainFrame.Size = UDim2.new(0, 300, 0, 180)
-        mainFrame.Position = UDim2.new(0, 10, 0, 10)
-        mainFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
-        mainFrame.BackgroundTransparency = 0.3
-        mainFrame.BorderSizePixel = 0
+        mainFrame.Size = UDim2.new(1, 0, 0.3, 0)
+        mainFrame.Position = UDim2.new(0, 0, 0.45, 0) -- Giữa màn hình
+        mainFrame.BackgroundTransparency = 1
         mainFrame.ZIndex = 1001
         mainFrame.Parent = screenGui
-        
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 8)
-        corner.Parent = mainFrame
-        print("Created MainFrame for item and level checker")
+        print("Created MainFrame for item and level checker in center")
     end
     
     -- Tạo TextLabel cho title
@@ -155,7 +162,7 @@ local function createBlackScreenAndChecker()
     if not titleLabel then
         titleLabel = Instance.new("TextLabel")
         titleLabel.Name = "TitleLabel"
-        titleLabel.Size = UDim2.new(1, 0, 0, 30)
+        titleLabel.Size = UDim2.new(1, 0, 0, 40)
         titleLabel.Position = UDim2.new(0, 0, 0, 0)
         titleLabel.BackgroundTransparency = 1
         titleLabel.Text = getGameNameByPlaceId(game.PlaceId)
@@ -174,8 +181,8 @@ local function createBlackScreenAndChecker()
     if not levelLabel then
         levelLabel = Instance.new("TextLabel")
         levelLabel.Name = "LevelLabel"
-        levelLabel.Size = UDim2.new(1, -10, 0, 25)
-        levelLabel.Position = UDim2.new(0, 5, 0, 30)
+        levelLabel.Size = UDim2.new(1, 0, 0, 30)
+        levelLabel.Position = UDim2.new(0, 0, 0, 40)
         levelLabel.BackgroundTransparency = 1
         levelLabel.Text = "Level: " .. checkPlayerLevel()
         levelLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -186,8 +193,6 @@ local function createBlackScreenAndChecker()
         levelLabel.ZIndex = 1002
         levelLabel.Parent = mainFrame
         print("Created LevelLabel: " .. levelLabel.Text)
-    else
-        levelLabel.Text = "Level: " .. checkPlayerLevel()
     end
     
     -- Tạo TextLabel cho items
@@ -196,8 +201,8 @@ local function createBlackScreenAndChecker()
         if not itemLabel then
             itemLabel = Instance.new("TextLabel")
             itemLabel.Name = itemName .. "Label"
-            itemLabel.Size = UDim2.new(1, -10, 0, 25)
-            itemLabel.Position = UDim2.new(0, 5, 0, 60 + (i-1)*30)
+            itemLabel.Size = UDim2.new(1, 0, 0, 30)
+            itemLabel.Position = UDim2.new(0, 0, 0, 70 + (i-1)*30)
             itemLabel.BackgroundTransparency = 1
             itemLabel.Text = itemName
             itemLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -208,18 +213,10 @@ local function createBlackScreenAndChecker()
             itemLabel.ZIndex = 1002
             itemLabel.Parent = mainFrame
         end
-        
-        -- Update màu sắc dựa trên có/không có item
-        local hasItem = checkInventoryForItem(itemName)
-        if hasItem then
-            itemLabel.TextColor3 = Color3.new(0, 1, 0) -- Xanh lá (🟢)
-            itemLabel.Text = itemName .. " 🟢"
-        else
-            itemLabel.TextColor3 = Color3.new(1, 0, 0) -- Đỏ (🔴)
-            itemLabel.Text = itemName .. " 🔴"
-        end
-        print("Updated " .. itemName .. "Label: " .. itemLabel.Text)
     end
+    
+    -- Update GUI lần đầu
+    updateGui(mainFrame)
     
     -- Theo dõi thay đổi level
     if player:FindFirstChild("Data") and player.Data:FindFirstChild("Level") then
@@ -232,34 +229,58 @@ local function createBlackScreenAndChecker()
         end)
     end
     
-    print("Black screen and item/level checker GUI created/updated")
+    -- Theo dõi thay đổi inventory
+    if player:FindFirstChild("Backpack") then
+        player.Backpack.ChildAdded:Connect(function()
+            updateGui(mainFrame)
+            print("Backpack changed, updating GUI")
+        end)
+        player.Backpack.ChildRemoved:Connect(function()
+            updateGui(mainFrame)
+            print("Backpack changed, updating GUI")
+        end)
+    end
+    player.CharacterAdded:Connect(function(character)
+        character:WaitForChild("Humanoid")
+        character.ChildAdded:Connect(function()
+            updateGui(mainFrame)
+            print("Character inventory changed, updating GUI")
+        end)
+        character.ChildRemoved:Connect(function()
+            updateGui(mainFrame)
+            print("Character inventory changed, updating GUI")
+        end)
+    end)
+    
+    print("Transparent GUI created/updated in center")
 end
 
 -- Tối ưu và tạo GUI lần đầu
 spawn(function()
     player.CharacterAdded:Connect(function()
         player.Character:WaitForChild("HumanoidRootPart")
-        wait(3)  -- Đợi game load đầy đủ
+        wait(3)
         print("Character loaded, starting optimization and GUI creation...")
         optimizePerformance()
-        createBlackScreenAndChecker()
+        createTransparentGui()
     end)
     
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        wait(3)  -- Đợi game load đầy đủ
+        wait(3)
         print("Player loaded, starting optimization and GUI creation...")
         optimizePerformance()
-        createBlackScreenAndChecker()
+        createTransparentGui()
     else
         print("ERROR: Player or HumanoidRootPart not loaded on start.")
     end
 end)
 
--- Update GUI mỗi 5 giây
+-- Tối ưu định kỳ mỗi 600 giây
 spawn(function()
     while true do
         optimizePerformance()
-        createBlackScreenAndChecker()
-        wait(5)
+        wait(600)
     end
 end)
+
+print("Transparent GUI script running. Check GUI in center of screen with real-time updates for level and items!")
