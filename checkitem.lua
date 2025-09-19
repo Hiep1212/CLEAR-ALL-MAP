@@ -162,8 +162,9 @@ local function createBlackScreenAndChecker()
     if not mainFrame then
         mainFrame = Instance.new("Frame")
         mainFrame.Name = "MainFrame"
-        mainFrame.Size = UDim2.new(1, 0, 0.4, 0)
-        mainFrame.Position = UDim2.new(0, 0, 0.45, 0) -- Giữa màn hình
+        mainFrame.Size = UDim2.new(0.6, 0, 0.4, 0)
+        mainFrame.Position = UDim2.new(0.5, 0, 0.45, 0) -- Giữa màn hình
+        mainFrame.AnchorPoint = Vector2.new(0.5, 0) -- Căn giữa
         mainFrame.BackgroundTransparency = 1
         mainFrame.ZIndex = 1001
         mainFrame.Parent = screenGui
@@ -175,8 +176,9 @@ local function createBlackScreenAndChecker()
     if not titleLabel then
         titleLabel = Instance.new("TextLabel")
         titleLabel.Name = "TitleLabel"
-        titleLabel.Size = UDim2.new(0.5, 0, 0, 50)
-        titleLabel.Position = UDim2.new(0, 0, 0, 0)
+        titleLabel.Size = UDim2.new(1, 0, 0, 50)
+        titleLabel.Position = UDim2.new(0.5, 0, 0, 0)
+        titleLabel.AnchorPoint = Vector2.new(0.5, 0) -- Căn giữa
         titleLabel.BackgroundTransparency = 1
         titleLabel.Text = getGameNameByPlaceId(game.PlaceId)
         titleLabel.TextColor3 = Color3.new(1, 1, 1) -- Chữ trắng
@@ -186,7 +188,7 @@ local function createBlackScreenAndChecker()
         titleLabel.TextStrokeTransparency = 0
         titleLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
         titleLabel.ZIndex = 1002
-        titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+        titleLabel.TextXAlignment = Enum.TextXAlignment.Center
         titleLabel.Parent = mainFrame
         print("Created TitleLabel: " .. titleLabel.Text)
     end
@@ -196,18 +198,19 @@ local function createBlackScreenAndChecker()
     if not levelLabel then
         levelLabel = Instance.new("TextLabel")
         levelLabel.Name = "LevelLabel"
-        levelLabel.Size = UDim2.new(0.5, 0, 0, 50)
-        levelLabel.Position = UDim2.new(0.5, 0, 0, 0)
+        levelLabel.Size = UDim2.new(1, 0, 0, 50)
+        levelLabel.Position = UDim2.new(0.5, 0, 0, 50)
+        levelLabel.AnchorPoint = Vector2.new(0.5, 0) -- Căn giữa
         levelLabel.BackgroundTransparency = 1
         levelLabel.Text = "Level: " .. checkPlayerLevel()
         levelLabel.TextColor3 = Color3.new(1, 1, 1) -- Chữ trắng
-        levelLabel.TextScaled = true
+        titleLabel.TextScaled = true
         levelLabel.TextSize = 40 -- Chữ to
         levelLabel.Font = Enum.Font.SourceSansBold
         levelLabel.TextStrokeTransparency = 0
         levelLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
         levelLabel.ZIndex = 1002
-        levelLabel.TextXAlignment = Enum.TextXAlignment.Right
+        levelLabel.TextXAlignment = Enum.TextXAlignment.Center
         levelLabel.Parent = mainFrame
         print("Created LevelLabel: " .. levelLabel.Text)
     end
@@ -219,7 +222,8 @@ local function createBlackScreenAndChecker()
             itemLabel = Instance.new("TextLabel")
             itemLabel.Name = itemName .. "Label"
             itemLabel.Size = UDim2.new(1, 0, 0, 30)
-            itemLabel.Position = UDim2.new(0, 0, 0, 60 + (i-1)*30)
+            itemLabel.Position = UDim2.new(0.5, 0, 0, 110 + (i-1)*30)
+            itemLabel.AnchorPoint = Vector2.new(0.5, 0) -- Căn giữa
             itemLabel.BackgroundTransparency = 1
             itemLabel.TextColor3 = Color3.new(1, 1, 1) -- Chữ trắng
             itemLabel.TextScaled = true
@@ -228,6 +232,7 @@ local function createBlackScreenAndChecker()
             itemLabel.TextStrokeTransparency = 0
             itemLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
             itemLabel.ZIndex = 1002
+            itemLabel.TextXAlignment = Enum.TextXAlignment.Center
             itemLabel.Parent = mainFrame
         end
     end
@@ -269,7 +274,7 @@ local function createBlackScreenAndChecker()
         end)
     end)
     
-    print("Black screen and adjusted GUI created/updated in center")
+    print("Black screen and centered GUI created/updated")
 end
 
 -- Tối ưu và tạo GUI lần đầu
@@ -300,4 +305,4 @@ spawn(function()
     end
 end)
 
-print("Black screen and adjusted GUI script running. Check black screen and GUI in center with large game name + level, smaller items, all white text!")
+print("Black screen and centered GUI script running. Check black screen and GUI in center with large game name and level (vertically aligned), smaller items, all white text!")
