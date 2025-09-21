@@ -1,19 +1,30 @@
+print("con chó địt mẹ mày bảo dog")
+print("con chó địt mẹ mày bảo dog")
+print("con chó địt mẹ mày bảo dog")
+print("con chó địt mẹ mày bảo dog")
+print("con chó địt mẹ mày bảo dog")
+print("con chó địt mẹ mày bảo dog")
+print("con chó địt mẹ mày bảo dog")
+print("con chó địt mẹ mày bảo dog")
+print("con chó địt mẹ mày bảo dog")
+print("con chó địt mẹ mày bảo dog")
+print("con chó địt mẹ mày bảo dog")
+print("con chó địt mẹ mày bảo dog")
+print("con chó địt mẹ mày bảo dog")
+print("con chó địt mẹ mày bảo dog")
+print("con chó địt mẹ mày bảo dog")
+print("con chó địt mẹ mày bảo dog")
+print("con chó địt mẹ mày bảo dog")
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
-
-print("Script started! Time: " .. os.date("%H:%M:%S")) -- Debug: Xác nhận script chạy
-
 local player = Players.LocalPlayer
-
--- Danh sách items cần check
 local itemsToCheck = {
     "GodHuman",
     "Cursed Dual Katana",
     "Skull Guitar"
 }
 
--- Hàm ánh xạ Place ID sang tên game
 local function getGameNameByPlaceId(placeId)
     local gameNames = {
         ["2753915549"] = "BLOX FRUIT SEA 1",
@@ -25,7 +36,6 @@ local function getGameNameByPlaceId(placeId)
     return gameNames[tostring(placeId)] or "Unknown Game"
 end
 
--- Hàm check level
 local function checkPlayerLevel()
     local placeId = tostring(game.PlaceId)
     local isBloxFruits = placeId == "2753915549" or placeId == "4442272183" or placeId == "7449423635"
@@ -44,7 +54,6 @@ local function checkPlayerLevel()
     return level
 end
 
--- Hàm check inventory có item không
 local function checkInventoryForItem(itemName)
     local hasItem = false
     pcall(function()
@@ -75,7 +84,6 @@ local function checkInventoryForItem(itemName)
     return hasItem
 end
 
--- Hàm tối ưu hiệu suất
 local function optimizePerformance()
     pcall(function()
         Lighting.GlobalShadows = false
@@ -93,7 +101,6 @@ local function optimizePerformance()
     end)
 end
 
--- Hàm update GUI
 local function updateGui(mainFrame)
     local levelLabel = mainFrame:FindFirstChild("LevelLabel")
     if levelLabel then
@@ -116,7 +123,6 @@ local function updateGui(mainFrame)
     end
 end
 
--- Hàm tạo bảng đen và GUI ở giữa màn hình
 local function createBlackScreenAndChecker()
     local maxWaitTime = 15
     local waitTime = 0
@@ -130,8 +136,7 @@ local function createBlackScreenAndChecker()
         print("ERROR: PlayerGui not found after waiting " .. maxWaitTime .. "s!")
         return
     end
-    
-    -- Tạo ScreenGui
+
     local screenGui = playerGui:FindFirstChild("BlackScreenGui")
     if not screenGui then
         screenGui = Instance.new("ScreenGui")
@@ -142,8 +147,7 @@ local function createBlackScreenAndChecker()
         screenGui.Parent = playerGui
         print("Created ScreenGui: BlackScreenGui")
     end
-    
-    -- Tạo Frame đen che màn hình
+
     local blackFrame = screenGui:FindFirstChild("BlackFrame")
     if not blackFrame then
         blackFrame = Instance.new("Frame")
@@ -156,8 +160,7 @@ local function createBlackScreenAndChecker()
         blackFrame.Parent = screenGui
         print("Created black frame to cover screen")
     end
-    
-    -- Tạo Frame cho GUI ở giữa màn hình
+
     local mainFrame = screenGui:FindFirstChild("MainFrame")
     if not mainFrame then
         mainFrame = Instance.new("Frame")
@@ -171,7 +174,6 @@ local function createBlackScreenAndChecker()
         print("Created MainFrame for item and level checker in center")
     end
     
-    -- Tạo TextLabel cho tên game
     local titleLabel = mainFrame:FindFirstChild("TitleLabel")
     if not titleLabel then
         titleLabel = Instance.new("TextLabel")
@@ -192,8 +194,7 @@ local function createBlackScreenAndChecker()
         titleLabel.Parent = mainFrame
         print("Created TitleLabel: " .. titleLabel.Text)
     end
-    
-    -- Tạo TextLabel cho level
+
     local levelLabel = mainFrame:FindFirstChild("LevelLabel")
     if not levelLabel then
         levelLabel = Instance.new("TextLabel")
@@ -214,8 +215,7 @@ local function createBlackScreenAndChecker()
         levelLabel.Parent = mainFrame
         print("Created LevelLabel: " .. levelLabel.Text)
     end
-    
-    -- Tạo TextLabel cho items
+
     for i, itemName in pairs(itemsToCheck) do
         local itemLabel = mainFrame:FindFirstChild(itemName .. "Label")
         if not itemLabel then
@@ -236,11 +236,9 @@ local function createBlackScreenAndChecker()
             itemLabel.Parent = mainFrame
         end
     end
-    
-    -- Update GUI lần đầu
+
     updateGui(mainFrame)
-    
-    -- Theo dõi thay đổi level
+
     if player:FindFirstChild("Data") and player.Data:FindFirstChild("Level") then
         player.Data.Level.Changed:Connect(function(newLevel)
             local levelLabel = mainFrame:FindFirstChild("LevelLabel")
@@ -250,8 +248,7 @@ local function createBlackScreenAndChecker()
             end
         end)
     end
-    
-    -- Theo dõi thay đổi inventory
+
     if player:FindFirstChild("Backpack") then
         player.Backpack.ChildAdded:Connect(function()
             updateGui(mainFrame)
@@ -277,7 +274,6 @@ local function createBlackScreenAndChecker()
     print("Black screen and centered GUI created/updated")
 end
 
--- Tối ưu và tạo GUI lần đầu
 spawn(function()
     player.CharacterAdded:Connect(function()
         player.Character:WaitForChild("HumanoidRootPart")
@@ -297,12 +293,9 @@ spawn(function()
     end
 end)
 
--- Tối ưu định kỳ mỗi 600 giây
 spawn(function()
     while true do
         optimizePerformance()
         wait(600)
     end
 end)
-
-print("Black screen and centered GUI script running. Check black screen and GUI in center with large game name and level (vertically aligned), smaller items, all white text!")
