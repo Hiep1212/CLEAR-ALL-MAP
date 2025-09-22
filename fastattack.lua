@@ -1,156 +1,98 @@
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local Debris = game:GetService("Debris")
-local player = Players.LocalPlayer
-local clearRadius = math.huge  -- Bán kính vô cực (xóa cả map)
-local excludeNames = {
-    "Terrain", "Platform", "Ground", "Base", "Floor", 
-    "Water", "Island", "Dock", "IslandBase", "Main", 
-    "Surface", "BasePlate", "Foundation", "Sea", "Land",
-    "Quest", "Giver", "Board", "Chest", "Treasure"
-}
-local function shouldClear(obj)
-    if not obj or not obj.Parent then return false end
-    for _, name in pairs(excludeNames) do
-        if string.find(string.lower(obj.Name), string.lower(name)) or 
-           (obj.Parent and string.find(string.lower(obj.Parent.Name), string.lower(name))) or 
-           obj:IsA("Terrain") then
-            return false
-        end
-    end
-    if obj:IsA("BasePart") and obj.CanCollide and obj.Anchored and obj.Size.Magnitude > 50 then
-        return false
-    end
-    return true
+local RS = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local LP = Players.LocalPlayer
+
+local function GetChar()
+    return LP.Character or LP.CharacterAdded:Wait()
 end
 
-local function clearObject(obj)
-    if (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) and shouldClear(obj) then
-        if obj.Parent == Workspace or obj.Parent:IsDescendantOf(Workspace) then
-            obj.Transparency = 1  -- Làm trong suốt
-            obj.CanCollide = false  -- Không va chạm
-            print("Hidden: " .. obj.Name .. " at " .. tostring(obj.Position))  -- Debug vị trí
-        end
-    elseif obj:IsA("Model") and shouldClear(obj) then
-        Debris:AddItem(obj, 0)  -- Xóa model (nhà, cây, Player, NPC, v.v.)
-        print("Removed: " .. obj.Name .. " at " .. tostring(obj:GetPivot().Position))  -- Debug vị trí
-    end
+local function GetRoot()
+    local char = GetChar()
+    return char:FindFirstChild("HumanoidRootPart")
 end
-local function getGameNameByPlaceId(placeId)
-    local gameNames = {
-        ["2753915549"] = "BLOX FRUIT SEA 1",
-        ["4442272183"] = "BLOX FRUIT SEA 2",
-        ["7449423635"] = "BLOX FRUIT SEA 3",
-        ["7436755782"] = "GROW A GARDEN",
-        ["7709344486"] = "STEAL A BRAINROT"
-    }
-    return gameNames[tostring(placeId)] or "Unknown Game"
-end
-local function checkPlayerLevel()
-    local placeId = tostring(game.PlaceId)
-    local isBloxFruits = placeId == "2753915549" or placeId == "4442272183" or placeId == "7449423635"
-    
-    if not isBloxFruits then
-        return "N/A"
-    end
-    
-    local level = "N/A"
-    if player:FindFirstChild("Data") and player.Data:FindFirstChild("Level") then
-        level = tostring(player.Data.Level.Value)
-        print("Player level: " .. level)
-    else
-        print("ERROR: Level not found in player.Data.Level")
-    end
-    return level
-end
-local function createTextLabel()
-    local placeId = game.PlaceId
-    local gameName = getGameNameByPlaceId(placeId)
-    local level = checkPlayerLevel()
-    
-    local maxWaitTime = 10
-    local waitTime = 0
-    while not player:FindFirstChild("PlayerGui") and waitTime < maxWaitTime do
-        wait(0.5)
-        waitTime = waitTime + 0.5
-    end
-    local playerGui = player.PlayerGui
-    if not playerGui then
-        print("ERROR: PlayerGui not found after waiting! TextLabel creation failed.")
-        return
-    end
-    
-    if playerGui:FindFirstChild("GameInfoLabel") then
-        print("TextLabel already exists, updating text...")
-        local textLabel = playerGui.GameInfoLabel:FindFirstChild("TextLabel")
-        if textLabel then
-            textLabel.Text = gameName .. " - Level: " .. level
-        end
-        return
-    end
-    
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "GameInfoLabel"
-    screenGui.IgnoreGuiInset = true
-    screenGui.ResetOnSpawn = false
-    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-    screenGui.Parent = playerGui
 
-    local textLabel = Instance.new("TextLabel")
-    textLabel.Name = "TextLabel"
-    textLabel.Size = UDim2.new(1, 0, 0.1, 0)
-    textLabel.Position = UDim2.new(0, 0, 0.45, 0)
-    textLabel.BackgroundTransparency = 1
-    textLabel.Text = gameName .. " - Level: " .. level
-    textLabel.TextColor3 = Color3.new(1, 1, 1)
-    textLabel.TextScaled = true
-    textLabel.Font = Enum.Font.SourceSansBold
-    textLabel.TextStrokeTransparency = 0
-    textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-    textLabel.ZIndex = 1001
-    textLabel.Parent = screenGui
+local Modules = RS:WaitForChild("Modules")
+local CombatUtil = require(Modules:WaitForChild("CombatUtil"))
+local RE_Attack = Modules.Net:WaitForChild("RE/RegisterAttack")
 
-    print("TextLabel created successfully with game name: " .. gameName .. " and level: " .. level)
-end
-local function clearMap()
-    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        for _, obj in pairs(Workspace:GetDescendants()) do
-            clearObject(obj)
-        end
-        print("Map cleared! All objects hidden/removed (including far islands), only large island blocks remain.")
-    else
-        print("Player not loaded, cannot clear map.")
-        return
-    end
-end
-spawn(function()
-    player.CharacterAdded:Connect(function()
-        player.Character:WaitForChild("HumanoidRootPart")
-        clearMap()
-        createTextLabel()
-    end)
-    
-    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        clearMap()
-        createTextLabel()
+local HIT_FUNCTION
+local RunHitDetection = CombatUtil.RunHitDetection
+pcall(function()
+    local env = getsenv(Modules.CombatUtil)
+    if env and env._G and env._G.SendHitsToServer then
+        HIT_FUNCTION = env._G.SendHitsToServer
     end
 end)
 
--- Lặp clear mỗi 600 giây và cập nhật level
-spawn(function()
-    while true do
-        clearMap()
-        if player.PlayerGui and player.PlayerGui:FindFirstChild("GameInfoLabel") then
-            local level = checkPlayerLevel()
-            local textLabel = player.PlayerGui.GameInfoLabel:FindFirstChild("TextLabel")
-            if textLabel then
-                textLabel.Text = getGameNameByPlaceId(game.PlaceId) .. " - Level: " .. level
-                print("TextLabel updated with level: " .. level)
+local FastAttack = {}
+
+function FastAttack:IsAlive(mob)
+    return mob
+        and mob:FindFirstChild("Humanoid")
+        and mob.Humanoid.Health > 0
+        and mob:FindFirstChild("HumanoidRootPart")
+end
+
+function FastAttack:GetTargets(radius)
+    local res = {}
+    local root = GetRoot()
+    if not root then return res end
+
+    local pos = root.Position
+    for _, mob in ipairs(workspace.Enemies:GetChildren()) do
+        if self:IsAlive(mob) then
+            if (mob.HumanoidRootPart.Position - pos).Magnitude <= (radius or 60) then
+                table.insert(res, mob)
             end
-        else
-            print("WARNING: TextLabel not found, recreating...")
-            createTextLabel()
         end
-        wait(600)
+    end
+    return res
+end
+
+function FastAttack:GetHitbox(mob)
+    local list = {
+        "RightLowerArm","RightUpperArm","LeftLowerArm","LeftUpperArm",
+        "RightHand","LeftHand","HumanoidRootPart","Head"
+    }
+    return mob:FindFirstChild(list[math.random(1,#list)]) or mob.HumanoidRootPart
+end
+
+function FastAttack:Attack()
+    local char = GetChar()
+    local tool = char:FindFirstChildOfClass("Tool")
+    if not tool then return end
+
+    if tool.ToolTip == "Blox Fruit" then
+        local remote = tool:FindFirstChild("LeftClickRemote")
+        if remote then
+            remote:FireServer(Vector3.new(0,-500,0),1,true)
+            remote:FireServer(false)
+        end
+        return
+    end
+
+    local targets = self:GetTargets(65)
+    if #targets == 0 then return end
+
+    local args = {[1]=nil,[2]={}}
+    for _, mob in ipairs(targets) do
+        local hit = self:GetHitbox(mob)
+        if not args[1] then args[1] = hit end
+        table.insert(args[2], {mob, hit})
+    end
+
+    RE_Attack:FireServer(0)
+    if HIT_FUNCTION then
+        HIT_FUNCTION(unpack(args))
+    end
+end
+
+_G.FastAttackToggle = true
+RunService.Heartbeat:Connect(function()
+    if _G.FastAttackToggle then
+        pcall(function()
+            FastAttack:Attack()
+        end)
     end
 end)
