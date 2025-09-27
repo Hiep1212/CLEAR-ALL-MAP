@@ -1,7 +1,8 @@
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
-local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
+
 local itemsToCheck = {
     "GodHuman",
     "Cursed Dual Katana",
@@ -40,11 +41,12 @@ end
 local function checkInventoryForItem(itemName)
     local hasItem = false
     pcall(function()
+        -- Check Character (cầm)
         if player.Character and player.Character:FindFirstChild("Humanoid") then
             for _, tool in pairs(player.Character:GetChildren()) do
                 if tool:IsA("Tool") and (string.find(string.lower(tool.Name), string.lower(itemName)) or tool.Name == itemName) then
                     hasItem = true
-                    print("Found item in Character: " .. itemName)
+                    print("Found item in Character (cầm): " .. itemName)
                     return
                 end
             end
@@ -53,7 +55,16 @@ local function checkInventoryForItem(itemName)
             for _, tool in pairs(player.Backpack:GetChildren()) do
                 if tool:IsA("Tool") and (string.find(string.lower(tool.Name), string.lower(itemName)) or tool.Name == itemName) then
                     hasItem = true
-                    print("Found item in Backpack: " .. itemName)
+                    print("Found item in Backpack (kho đồ): " .. itemName)
+                    return
+                end
+            end
+        end
+        if player:FindFirstChild("Data") and player.Data:FindFirstChild("Inventory") then
+            for _, item in pairs(player.Data.Inventory:GetChildren()) do
+                if item:IsA("StringValue") or item:IsA("ObjectValue") and (string.find(string.lower(item.Name), string.lower(itemName)) or item.Name == itemName) then
+                    hasItem = true
+                    print("Found item in Data.Inventory (Storage): " .. itemName)
                     return
                 end
             end
@@ -156,7 +167,7 @@ local function createBlackScreenAndChecker()
         mainFrame.Parent = screenGui
         print("Created MainFrame for item and level checker in center")
     end
-    
+
     local titleLabel = mainFrame:FindFirstChild("TitleLabel")
     if not titleLabel then
         titleLabel = Instance.new("TextLabel")
@@ -188,7 +199,7 @@ local function createBlackScreenAndChecker()
         levelLabel.BackgroundTransparency = 1
         levelLabel.Text = "Level: " .. checkPlayerLevel()
         levelLabel.TextColor3 = Color3.new(1, 1, 1) -- Chữ trắng
-        titleLabel.TextScaled = true
+        levelLabel.TextScaled = true
         levelLabel.TextSize = 40 -- Chữ to
         levelLabel.Font = Enum.Font.SourceSansBold
         levelLabel.TextStrokeTransparency = 0
@@ -282,4 +293,3 @@ spawn(function()
         wait(600)
     end
 end)
-
