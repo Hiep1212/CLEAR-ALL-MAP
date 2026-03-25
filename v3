@@ -32,7 +32,7 @@ local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0, 10, 0, 10)
+MainFrame.Position = UDim2.new(0, 10, 0.5, -45)
 MainFrame.Size = UDim2.new(0, 180, 0, 90)
 
 local UICorner = Instance.new("UICorner")
