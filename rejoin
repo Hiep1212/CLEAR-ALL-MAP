@@ -1,0 +1,135 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local jobId = game.JobId
+
+-- ScreenGui
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "RejoinGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+-- Frame
+local Frame = Instance.new("Frame")
+Frame.Parent = ScreenGui
+Frame.Size = UDim2.new(0, 220, 0, 90)
+Frame.Position = UDim2.new(0, 15, 1, -105) -- góc dưới bên trái
+Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Frame.BorderSizePixel = 0
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = Frame
+
+-- Title
+local Title = Instance.new("TextLabel")
+Title.Parent = Frame
+Title.Size = UDim2.new(1, -10, 0, 25)
+Title.Position = UDim2.new(0, 5, 0, 5)
+Title.BackgroundTransparency = 1
+Title.Text = "Current Server"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextScaled = true
+Title.Font = Enum.Font.SourceSansBold
+
+-- JobId label
+local JobLabel = Instance.new("TextLabel")
+JobLabel.Parent = Frame
+JobLabel.Size = UDim2.new(1, -10, 0, 25)
+JobLabel.Position = UDim2.new(0, 5, 0, 30)
+JobLabel.BackgroundTransparency = 1
+JobLabel.Text = "JobId: " .. tostring(jobId)
+JobLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+JobLabel.TextScaled = true
+JobLabel.Font = Enum.Font.SourceSans
+
+-- Rejoin button
+local RejoinButton = Instance.new("TextButton")
+RejoinButton.Parent = Frame
+RejoinButton.Size = UDim2.new(1, -10, 0, 25)
+RejoinButton.Position = UDim2.new(0, 5, 1, -30)
+RejoinButton.BackgroundColor3 = Color3.fromRGB(45, 120, 255)
+RejoinButton.Text = "Rejoin"
+RejoinButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+RejoinButton.TextScaled = true
+RejoinButton.Font = Enum.Font.SourceSansBold
+RejoinButton.BorderSizePixel = 0
+
+local ButtonCorner = Instance.new("UICorner")
+ButtonCorner.CornerRadius = UDim.new(0, 6)
+ButtonCorner.Parent = RejoinButton
+
+RejoinButton.MouseButton1Click:Connect(function()
+	local currentJobId = game.JobId
+	ReplicatedStorage.__ServerBrowser:InvokeServer("teleport", currentJobId)
+end)local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local jobId = game.JobId
+
+-- ScreenGui
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "RejoinGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+-- Frame
+local Frame = Instance.new("Frame")
+Frame.Parent = ScreenGui
+Frame.Size = UDim2.new(0, 220, 0, 90)
+Frame.Position = UDim2.new(0, 15, 1, -105) -- góc dưới bên trái
+Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Frame.BorderSizePixel = 0
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = Frame
+
+-- Title
+local Title = Instance.new("TextLabel")
+Title.Parent = Frame
+Title.Size = UDim2.new(1, -10, 0, 25)
+Title.Position = UDim2.new(0, 5, 0, 5)
+Title.BackgroundTransparency = 1
+Title.Text = "Current Server"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextScaled = true
+Title.Font = Enum.Font.SourceSansBold
+
+-- JobId label
+local JobLabel = Instance.new("TextLabel")
+JobLabel.Parent = Frame
+JobLabel.Size = UDim2.new(1, -10, 0, 25)
+JobLabel.Position = UDim2.new(0, 5, 0, 30)
+JobLabel.BackgroundTransparency = 1
+JobLabel.Text = "JobId: " .. tostring(jobId)
+JobLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+JobLabel.TextScaled = true
+JobLabel.Font = Enum.Font.SourceSans
+
+-- Rejoin button
+local RejoinButton = Instance.new("TextButton")
+RejoinButton.Parent = Frame
+RejoinButton.Size = UDim2.new(1, -10, 0, 25)
+RejoinButton.Position = UDim2.new(0, 5, 1, -30)
+RejoinButton.BackgroundColor3 = Color3.fromRGB(45, 120, 255)
+RejoinButton.Text = "Rejoin"
+RejoinButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+RejoinButton.TextScaled = true
+RejoinButton.Font = Enum.Font.SourceSansBold
+RejoinButton.BorderSizePixel = 0
+
+local ButtonCorner = Instance.new("UICorner")
+ButtonCorner.CornerRadius = UDim.new(0, 6)
+ButtonCorner.Parent = RejoinButton
+
+RejoinButton.MouseButton1Click:Connect(function()
+	local currentJobId = game.JobId
+	ReplicatedStorage.__ServerBrowser:InvokeServer("teleport", currentJobId)
+end)
