@@ -1,1 +1,154 @@
+--// Auto Quest V3 + Buy V3
+-- Nhận nhiệm vụ đúng 1 lần, sau đó chỉ thử mua V3
 
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local CommF_ = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+
+pcall(function()
+    local old = PlayerGui:FindFirstChild("QuestV3Gui")
+    if old then
+        old:Destroy()
+    end
+end)
+
+local function NhanNhiemVu()
+    local args = {"Wenlocktoad", "2"}
+    return CommF_:InvokeServer(unpack(args))
+end
+
+local function MuaTocV3()
+    local args = {"Wenlocktoad", "3"}
+    return CommF_:InvokeServer(unpack(args))
+end
+
+local function toText(v)
+    return tostring(v):lower()
+end
+
+local function DaNhanQuestThanhCong(result)
+    local text = toText(result)
+
+    return text:find("defeat 5 players")
+        or text:find("talk to me again once you defeat 5 players")
+        or text:find("accepted")
+        or text:find("already")
+        or text:find("success")
+end
+
+local function DaMuaV3ThanhCong(result)
+    local text = toText(result)
+
+    return text:find("bought")
+        or text:find("success")
+        or text:find("obtained")
+        or text:find("already")
+end
+
+-- GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "QuestV3Gui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Parent = ScreenGui
+MainFrame.Position = UDim2.new(0, 10, 0, 10)
+MainFrame.Size = UDim2.new(0, 190, 0, 125)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BorderSizePixel = 0
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
+
+local Title = Instance.new("TextLabel")
+Title.Parent = MainFrame
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundTransparency = 1
+Title.Text = "Nhận nhiệm vụ V3"
+Title.TextColor3 = Color3.fromRGB(255,255,255)
+Title.TextSize = 18
+Title.Font = Enum.Font.SourceSansBold
+
+local BtnQuest = Instance.new("TextButton")
+BtnQuest.Parent = MainFrame
+BtnQuest.Position = UDim2.new(0.1, 0, 0.35, 0)
+BtnQuest.Size = UDim2.new(0.8, 0, 0, 30)
+BtnQuest.BackgroundColor3 = Color3.fromRGB(45,45,45)
+BtnQuest.Text = "Nhận nhiệm vụ"
+BtnQuest.TextColor3 = Color3.fromRGB(255,255,255)
+BtnQuest.TextSize = 16
+BtnQuest.Font = Enum.Font.SourceSansBold
+Instance.new("UICorner", BtnQuest).CornerRadius = UDim.new(0, 6)
+
+local BtnBuy = Instance.new("TextButton")
+BtnBuy.Parent = MainFrame
+BtnBuy.Position = UDim2.new(0.1, 0, 0.65, 0)
+BtnBuy.Size = UDim2.new(0.8, 0, 0, 30)
+BtnBuy.BackgroundColor3 = Color3.fromRGB(45,45,45)
+BtnBuy.Text = "Mua tộc V3"
+BtnBuy.TextColor3 = Color3.fromRGB(255,255,255)
+BtnBuy.TextSize = 16
+BtnBuy.Font = Enum.Font.SourceSansBold
+Instance.new("UICorner", BtnBuy).CornerRadius = UDim.new(0, 6)
+
+local Status = Instance.new("TextLabel")
+Status.Parent = MainFrame
+Status.Position = UDim2.new(0, 0, 1, -20)
+Status.Size = UDim2.new(1, 0, 0, 20)
+Status.BackgroundTransparency = 1
+Status.Text = "Trạng thái: Đang khởi động..."
+Status.TextColor3 = Color3.fromRGB(200, 200, 200)
+Status.TextSize = 14
+Status.Font = Enum.Font.SourceSans
+
+BtnQuest.MouseButton1Click:Connect(function()
+    local ok, result = pcall(NhanNhiemVu)
+    print("Nhận nhiệm vụ:", ok and result or "Lỗi")
+end)
+
+BtnBuy.MouseButton1Click:Connect(function()
+    local ok, result = pcall(MuaTocV3)
+    print("Mua V3:", ok and result or "Lỗi")
+end)
+
+task.spawn(function()
+    local daNhanQuest = false
+
+    local ok, result = pcall(NhanNhiemVu)
+    if ok then
+        print("Nhận nhiệm vụ:", result)
+
+        if DaNhanQuestThanhCong(result) then
+            daNhanQuest = true
+            Status.Text = "Trạng thái: Đã nhận nhiệm vụ"
+            print("Đã nhận nhiệm vụ, sẽ không nhận lại nữa.")
+        else
+            Status.Text = "Trạng thái: Chưa nhận được nhiệm vụ"
+        end
+    else
+        Status.Text = "Trạng thái: Lỗi khi nhận nhiệm vụ"
+    end
+
+    while task.wait(3) do
+        if daNhanQuest then
+            local okBuy, buyResult = pcall(MuaTocV3)
+            if okBuy then
+                print("Thử mua V3:", buyResult)
+
+                if DaMuaV3ThanhCong(buyResult) then
+                    Status.Text = "Trạng thái: Đã mua V3"
+                    print("Mua V3 thành công, dừng script.")
+                    break
+                else
+                    Status.Text = "Trạng thái: Chưa đủ điều kiện mua V3"
+                end
+            else
+                Status.Text = "Trạng thái: Lỗi khi thử mua V3"
+            end
+        else
+            Status.Text = "Trạng thái: Chưa nhận được nhiệm vụ"
+            break
+        end
+    end
+end)
