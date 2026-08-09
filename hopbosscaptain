@@ -1,0 +1,154 @@
+-- ================= CONFIG =================
+local MOB_NAME = "Cursed Captain"
+local TEAM_NAME = "Pirates"
+
+-- ================= SERVICES =================
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+
+local LocalPlayer = Players.LocalPlayer
+local placeId = game.PlaceId
+local currentJobId = game.JobId
+
+-- ================= SET TEAM TRƯỚC =================
+repeat task.wait() until ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+
+local CommF_ = ReplicatedStorage.Remotes.CommF_
+
+if not LocalPlayer.Team then
+    pcall(function()
+        CommF_:InvokeServer("SetTeam", TEAM_NAME)
+    end)
+    repeat task.wait() until LocalPlayer.Team
+end
+
+repeat task.wait() until LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+-- ================= GUI =================
+local stopped = false
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "BossHopGUI"
+gui.ResetOnSpawn = false
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 220, 0, 90)
+frame.Position = UDim2.new(0, 20, 0, 20)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+local corner = Instance.new("UICorner", frame)
+corner.CornerRadius = UDim.new(0, 8)
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, -20, 0, 40)
+statusLabel.Position = UDim2.new(0, 10, 0, 10)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Font = Enum.Font.GothamBold
+statusLabel.TextSize = 14
+statusLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.TextWrapped = true
+statusLabel.Text = "Status: Đang khởi động..."
+statusLabel.Parent = frame
+
+local stopBtn = Instance.new("TextButton")
+stopBtn.Size = UDim2.new(1, -20, 0, 28)
+stopBtn.Position = UDim2.new(0, 10, 0, 54)
+stopBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+stopBtn.Font = Enum.Font.GothamBold
+stopBtn.TextSize = 14
+stopBtn.TextColor3 = Color3.new(1, 1, 1)
+stopBtn.Text = "☐ Dừng Hop"
+stopBtn.Parent = frame
+
+local btnCorner = Instance.new("UICorner", stopBtn)
+btnCorner.CornerRadius = UDim.new(0, 6)
+
+stopBtn.MouseButton1Click:Connect(function()
+    stopped = not stopped
+    stopBtn.Text = stopped and "☑ Đã Dừng" or "☐ Dừng Hop"
+    stopBtn.BackgroundColor3 = stopped and Color3.fromRGB(60, 160, 80) or Color3.fromRGB(200, 60, 60)
+end)
+
+local function setStatus(text)
+    statusLabel.Text = "Status: " .. text
+end
+
+-- ================= CORE LOGIC =================
+local function findMob(mobName)
+    return workspace:FindFirstChild("Enemies") and workspace.Enemies:FindFirstChild(mobName)
+        or ReplicatedStorage:FindFirstChild(mobName)
+end
+
+local function hopServer()
+    local cursor = nil
+    for _ = 1, 5 do
+        if stopped then return end
+        local ok, data = pcall(function()
+            local url = string.format(
+                "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100%s",
+                placeId, cursor and ("&cursor=" .. cursor) or ""
+            )
+            return HttpService:JSONDecode(game:HttpGet(url))
+        end)
+        if not ok or not data or not data.data then break end
+
+        for _, server in ipairs(data.data) do
+            if server.id ~= currentJobId and server.playing < server.maxPlayers then
+                pcall(function()
+                    TeleportService:TeleportToPlaceInstance(placeId, server.id, LocalPlayer)
+                end)
+                return
+            end
+        end
+
+        cursor = data.nextPageCursor
+        if not cursor or cursor == "" then break end
+    end
+
+    pcall(function()
+        TeleportService:Teleport(placeId, LocalPlayer)
+    end)
+end
+
+-- ================= MAIN LOOP =================
+task.spawn(function()
+    while true do
+        if stopped then
+            setStatus("Đã dừng")
+            task.wait(1)
+        else
+            local mob = findMob(MOB_NAME)
+
+            if mob then
+                setStatus("✅ Có Boss - " .. MOB_NAME)
+                while mob and mob.Parent and not stopped do
+                    task.wait(1)
+                    mob = findMob(MOB_NAME)
+                end
+
+                if not stopped then
+                    setStatus("Boss chết, đợi 60s...")
+                    for i = 60, 1, -1 do
+                        if stopped then break end
+                        setStatus(string.format("Boss chết, đợi %ds...", i))
+                        task.wait(1)
+                    end
+                    if not stopped then
+                        setStatus("Đang hop server tìm boss...")
+                        hopServer()
+                    end
+                end
+            else
+                setStatus("Không có boss, đang hop...")
+                hopServer()
+                task.wait(3)
+            end
+        end
+    end
+end)
