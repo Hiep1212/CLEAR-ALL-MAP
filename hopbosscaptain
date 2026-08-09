@@ -1,6 +1,7 @@
 -- ================= CONFIG =================
 local MOB_NAME = "Cursed Captain"
 local TEAM_NAME = "Pirates"
+local TARGET_MAX_PLAYERS = 8 -- Ưu tiên server dưới 8 người
 
 -- ================= SERVICES =================
 local Players = game:GetService("Players")
@@ -12,9 +13,11 @@ local LocalPlayer = Players.LocalPlayer
 local placeId = game.PlaceId
 local currentJobId = game.JobId
 
--- ================= SET TEAM TRƯỚC =================
-repeat task.wait() until ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+-- Hỗ trợ HTTP Request đa Executor (Synapse, Fluxus, Wave, Solara, Hydrogen...)
+local httpRequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
 
+-- ================= SET TEAM =================
+repeat task.wait() until ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
 local CommF_ = ReplicatedStorage.Remotes.CommF_
 
 if not LocalPlayer.Team then
@@ -35,33 +38,36 @@ gui.ResetOnSpawn = false
 gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 220, 0, 90)
+frame.Size = UDim2.new(0, 230, 0, 95)
 frame.Position = UDim2.new(0, 20, 0, 20)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
 frame.Parent = gui
 
 local corner = Instance.new("UICorner", frame)
 corner.CornerRadius = UDim.new(0, 8)
 
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, -20, 0, 40)
-statusLabel.Position = UDim2.new(0, 10, 0, 10)
+statusLabel.Size = UDim2.new(1, -20, 0, 42)
+statusLabel.Position = UDim2.new(0, 10, 0, 8)
 statusLabel.BackgroundTransparency = 1
 statusLabel.Font = Enum.Font.GothamBold
-statusLabel.TextSize = 14
+statusLabel.TextSize = 13
 statusLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
 statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.TextYAlignment = Enum.TextYAlignment.Top
 statusLabel.TextWrapped = true
 statusLabel.Text = "Status: Đang khởi động..."
 statusLabel.Parent = frame
 
 local stopBtn = Instance.new("TextButton")
 stopBtn.Size = UDim2.new(1, -20, 0, 28)
-stopBtn.Position = UDim2.new(0, 10, 0, 54)
+stopBtn.Position = UDim2.new(0, 10, 0, 56)
 stopBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
 stopBtn.Font = Enum.Font.GothamBold
-stopBtn.TextSize = 14
+stopBtn.TextSize = 13
 stopBtn.TextColor3 = Color3.new(1, 1, 1)
 stopBtn.Text = "☐ Dừng Hop"
 stopBtn.Parent = frame
@@ -79,48 +85,185 @@ local function setStatus(text)
     statusLabel.Text = "Status: " .. text
 end
 
--- ================= CORE LOGIC =================
-local function findMob(mobName)
-    return workspace:FindFirstChild("Enemies") and workspace.Enemies:FindFirstChild(mobName)
-        or ReplicatedStorage:FindFirstChild(mobName)
+-- ================= ERROR PROMPT HANDLER =================
+game:GetService("CoreGui").RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(v)
+    if v.Name == "ErrorPrompt" then
+        task.spawn(function()
+            setStatus("Gặp lỗi kết nối, đang thử lại...")
+            local attempts, maxAttempts = 0, 5
+            while v.Parent and attempts < maxAttempts do
+                attempts = attempts + 1
+                pcall(function()
+                    ReplicatedStorage.__ServerBrowser:InvokeServer("teleport", "")
+                end)
+                task.wait(attempts * 1.5)
+            end
+        end)
+    end
+end)
+
+-- ================= HOP LOGIC =================
+local TriedHops = {}
+local lastAttemptJobId = nil
+local lastAttemptFailed = false
+
+TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
+    warn("Teleport failed:", teleportResult, errorMessage)
+    if lastAttemptJobId then
+        TriedHops[lastAttemptJobId] = os.time() + 600 -- Blacklist 10 phút nếu fail
+    end
+    lastAttemptFailed = true
+end)
+
+local function executeHop(jobId)
+    lastAttemptJobId = jobId
+    lastAttemptFailed = false
+    local ok = pcall(function()
+        ReplicatedStorage.__ServerBrowser:InvokeServer("teleport", jobId or "")
+    end)
+    return ok
 end
 
-local function hopServer()
-    local cursor = nil
-    for _ = 1, 5 do
-        if stopped then return end
-        local ok, data = pcall(function()
-            local url = string.format(
-                "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100%s",
-                placeId, cursor and ("&cursor=" .. cursor) or ""
-            )
-            return HttpService:JSONDecode(game:HttpGet(url))
-        end)
-        if not ok or not data or not data.data then break end
+-- 1. Tìm Server qua Web API (Siêu nhanh, tự sắp xếp ít người)
+local function getServersHTTP(cursor)
+    if not httpRequest then return nil end
+    local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100%s", placeId, cursor and ("&cursor=" .. cursor) or "")
+    local ok, res = pcall(function()
+        return httpRequest({ Url = url, Method = "GET" })
+    end)
+    
+    if ok and res and res.StatusCode == 200 then
+        local decodeOk, data = pcall(function() return HttpService:JSONDecode(res.Body) end)
+        if decodeOk then return data end
+    end
+    return nil
+end
 
-        for _, server in ipairs(data.data) do
-            if server.id ~= currentJobId and server.playing < server.maxPlayers then
-                pcall(function()
-                    TeleportService:TeleportToPlaceInstance(placeId, server.id, LocalPlayer)
-                end)
-                return
+local function hopViaHTTP(maxPlayers)
+    setStatus("Đang tìm server ít người (API)...")
+    local cursor = nil
+    local now = os.time()
+    
+    for _ = 1, 3 do -- Duyệt tối đa 3 trang API (300 servers)
+        if stopped then return false end
+        local data = getServersHTTP(cursor)
+        
+        if data and data.data then
+            for _, server in ipairs(data.data) do
+                if stopped then return false end
+                local jobId = server.id
+                local count = server.playing
+                
+                if jobId ~= currentJobId and count < maxPlayers and (not TriedHops[jobId] or now > TriedHops[jobId]) then
+                    TriedHops[jobId] = now + 180 -- Đánh dấu đã thử
+                    setStatus(string.format("Vào server %d người (API)...", count))
+                    
+                    local sent = executeHop(jobId)
+                    task.wait(2)
+                    
+                    if sent and not lastAttemptFailed then
+                        for i = 3, 1, -1 do
+                            if stopped then break end
+                            setStatus(string.format("Đã gửi lệnh (%d người), chờ %ds...", count, i))
+                            task.wait(1)
+                        end
+                        return true
+                    end
+                end
+            end
+            cursor = data.nextPageCursor
+            if not cursor then break end
+        else
+            break
+        end
+    end
+    return false
+end
+
+-- 2. Fallback: Tìm Server qua Remote Game (Khi HTTP API lỗi hoặc không hỗ trợ)
+local function hopViaRemote(maxPlayers)
+    local page = 1
+    local maxPage = 15
+    local now = os.time()
+    
+    while not stopped and page <= maxPage do
+        setStatus(string.format("Quét Remote server <%d người (Trang %d)...", maxPlayers, page))
+        
+        local ok, servers = pcall(function()
+            return ReplicatedStorage.__ServerBrowser:InvokeServer(page)
+        end)
+        task.wait(0.3)
+        
+        if ok and type(servers) == "table" and next(servers) ~= nil then
+            local candidates = {}
+            for jobId, serverData in pairs(servers) do
+                if type(serverData) == "table" then
+                    local count = tonumber(serverData.Count) or 0
+                    if jobId ~= currentJobId and count < maxPlayers and (not TriedHops[jobId] or now > TriedHops[jobId]) then
+                        table.insert(candidates, {id = jobId, count = count})
+                    end
+                end
+            end
+            
+            table.sort(candidates, function(a, b) return a.count < b.count end)
+            
+            for _, c in ipairs(candidates) do
+                if stopped then return false end
+                TriedHops[c.id] = now + 180
+                setStatus(string.format("Vào server %d người (Remote)...", c.count))
+                
+                local sent = executeHop(c.id)
+                task.wait(2)
+                
+                if sent and not lastAttemptFailed then
+                    return true
+                end
             end
         end
-
-        cursor = data.nextPageCursor
-        if not cursor or cursor == "" then break end
+        page = page + 1
     end
+    return false
+end
 
-    pcall(function()
-        TeleportService:Teleport(placeId, LocalPlayer)
-    end)
+-- Tổng hợp logic Hop Server
+local function hopServer()
+    local currentMaxLimit = TARGET_MAX_PLAYERS
+    
+    while not stopped do
+        -- Thử HTTP API trước
+        if httpRequest then
+            local success = hopViaHTTP(currentMaxLimit)
+            if success then return true end
+        end
+        
+        -- Nếu HTTP thất bại hoặc không dùng được, dùng Remote Game
+        local successRemote = hopViaRemote(currentMaxLimit)
+        if successRemote then return true end
+        
+        -- Nếu không tìm được server < maxLimit người, nới rộng giới hạn số người
+        if currentMaxLimit < 12 then
+            currentMaxLimit = currentMaxLimit + 2
+            setStatus(string.format("Không có server <%d người, tăng lên %d...", currentMaxLimit - 2, currentMaxLimit))
+        else
+            setStatus("Không tìm thấy server phù hợp, thử lại sau 3s...")
+            task.wait(3)
+            currentMaxLimit = TARGET_MAX_PLAYERS
+        end
+    end
+    return false
+end
+
+-- ================= CORE LOGIC =================
+local function findMob(mobName)
+    return (workspace:FindFirstChild("Enemies") and workspace.Enemies:FindFirstChild(mobName))
+        or ReplicatedStorage:FindFirstChild(mobName)
 end
 
 -- ================= MAIN LOOP =================
 task.spawn(function()
     while true do
         if stopped then
-            setStatus("Đã dừng")
+            setStatus("Đã dừng Hop")
             task.wait(1)
         else
             local mob = findMob(MOB_NAME)
@@ -133,21 +276,19 @@ task.spawn(function()
                 end
 
                 if not stopped then
-                    setStatus("Boss chết, đợi 60s...")
-                    for i = 60, 1, -1 do
+                    setStatus("Boss chết/mất, đợi 30s trước khi hop...")
+                    for i = 30, 1, -1 do
                         if stopped then break end
                         setStatus(string.format("Boss chết, đợi %ds...", i))
                         task.wait(1)
                     end
                     if not stopped then
-                        setStatus("Đang hop server tìm boss...")
                         hopServer()
                     end
                 end
             else
-                setStatus("Không có boss, đang hop...")
+                setStatus("Không tìm thấy boss, đang hop...")
                 hopServer()
-                task.wait(3)
             end
         end
     end
