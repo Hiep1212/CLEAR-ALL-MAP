@@ -1,0 +1,15 @@
+local Event = game:GetService("ReplicatedStorage").Remotes.CommF_
+local Result = Event:InvokeServer("SetTeam", "Pirates")
+
+local MaxSpeed = 250 
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local CommF_Remote = Remotes:WaitForChild("CommF_")
+local player = game.Players.LocalPlayer
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+CommF_Remote:InvokeServer("TravelZou") 
