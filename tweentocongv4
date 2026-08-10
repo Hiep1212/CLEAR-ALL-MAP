@@ -1,0 +1,36 @@
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local player = game:GetService("Players").LocalPlayer
+local camera = workspace.CurrentCamera
+local character = player.Character or player.CharacterAdded:Wait()
+local rootPart = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+local targetCFrame = CFrame.new(3017.41, 2280.60, -7332.41)
+local speed = 200
+
+local distance = (rootPart.Position - targetCFrame.Position).Magnitude
+local timeToTravel = distance / speed
+
+local tweenInfo = TweenInfo.new(timeToTravel, Enum.EasingStyle.Linear)
+local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
+
+local bodyVelocity = Instance.new("BodyVelocity")
+bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+bodyVelocity.Parent = rootPart
+
+-- Liên tục ép camera đi theo nhân vật trong lúc bay
+local cameraFix = RunService.RenderStepped:Connect(function()
+    camera.CameraSubject = humanoid
+end)
+
+tween:Play()
+
+tween.Completed:Connect(function()
+    if bodyVelocity then
+        bodyVelocity:Destroy()
+    end
+    -- Ngừng ép camera sau khi đã tới nơi để tối ưu hiệu suất
+    cameraFix:Disconnect()
+end)
