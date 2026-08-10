@@ -1,36 +1,64 @@
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-local player = game:GetService("Players").LocalPlayer
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 local character = player.Character or player.CharacterAdded:Wait()
 local rootPart = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
 
-local targetCFrame = CFrame.new(3017.41, 2280.60, -7332.41)
-local speed = 150
+-- Toạ độ đích (lấy theo toạ độ mới nhất bạn vừa đề cập)
+local targetPosition = Vector3.new(5709.37, 18.81, 270.24)
+local speed = 100
 
-local distance = (rootPart.Position - targetCFrame.Position).Magnitude
+-- Các biến lưu trữ quản lý trạng thái
+local currentTween = nil
+local antiGravity = nil
+
+-- Hàm tính khoảng cách và thời gian
+local distance = (rootPart.Position - targetPosition).Magnitude
 local timeToTravel = distance / speed
 
+-- 1. Dọn dẹp Tween và trọng lực cũ nếu có trước khi bắt đầu bay mới
+if currentTween then currentTween:Cancel() end
+if antiGravity then antiGravity:Destroy() end
+
+-- 2. Tạo lực lơ lửng chống rơi
+antiGravity = Instance.new("BodyVelocity")
+antiGravity.Velocity = Vector3.new(0, 0, 0)
+antiGravity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+antiGravity.Parent = rootPart
+
+-- 3. Khởi tạo Tween
 local tweenInfo = TweenInfo.new(timeToTravel, Enum.EasingStyle.Linear)
-local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
+currentTween = TweenService:Create(rootPart, tweenInfo, {CFrame = CFrame.new(targetPosition)})
 
-local bodyVelocity = Instance.new("BodyVelocity")
-bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-bodyVelocity.Parent = rootPart
-
--- Liên tục ép camera đi theo nhân vật trong lúc bay
-local cameraFix = RunService.RenderStepped:Connect(function()
-    camera.CameraSubject = humanoid
+-- 4. Vòng lặp Noclip (Học từ code của bạn: Chỉ Noclip khi Tween đang chạy)
+RunService.Stepped:Connect(function()
+    if currentTween and currentTween.PlaybackState == Enum.PlaybackState.Playing then
+        for _, v in pairs(character:GetDescendants()) do
+            if v:IsA("BasePart") then 
+                v.CanCollide = false 
+            end
+        end
+    end
 end)
 
-tween:Play()
-
-tween.Completed:Connect(function()
-    if bodyVelocity then
-        bodyVelocity:Destroy()
+-- 5. Vòng lặp Fix Camera (Áp dụng cùng logic kiểm tra trạng thái như Noclip)
+RunService.RenderStepped:Connect(function()
+    if currentTween and currentTween.PlaybackState == Enum.PlaybackState.Playing then
+        camera.CameraSubject = humanoid
     end
-    -- Ngừng ép camera sau khi đã tới nơi để tối ưu hiệu suất
-    cameraFix:Disconnect()
+end)
+
+-- Bắt đầu bay
+currentTween:Play()
+
+-- Khi đến nơi thì xóa lực lơ lửng
+currentTween.Completed:Connect(function()
+    if antiGravity then
+        antiGravity:Destroy()
+        antiGravity = nil
+    end
 end)
