@@ -7,7 +7,7 @@ local rootPart = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
 
 local targetCFrame = CFrame.new(3017.41, 2280.60, -7332.41)
-local speed = 200
+local speed = 150
 
 local distance = (rootPart.Position - targetCFrame.Position).Magnitude
 local timeToTravel = distance / speed
