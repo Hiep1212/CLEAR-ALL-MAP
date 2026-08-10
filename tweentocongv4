@@ -8,8 +8,8 @@ local character = player.Character or player.CharacterAdded:Wait()
 local rootPart = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
 
--- Toạ độ đích (lấy theo toạ độ mới nhất bạn vừa đề cập)
-local targetPosition = Vector3.new(5709.37, 18.81, 270.24)
+-- Đã thay lại đúng toạ độ đích của mày
+local targetPosition = Vector3.new(2955.80, 2273.12, -7295.26)
 local speed = 150
 
 -- Các biến lưu trữ quản lý trạng thái
@@ -34,7 +34,7 @@ antiGravity.Parent = rootPart
 local tweenInfo = TweenInfo.new(timeToTravel, Enum.EasingStyle.Linear)
 currentTween = TweenService:Create(rootPart, tweenInfo, {CFrame = CFrame.new(targetPosition)})
 
--- 4. Vòng lặp Noclip (Học từ code của bạn: Chỉ Noclip khi Tween đang chạy)
+-- 4. Vòng lặp Noclip chỉ chạy khi Tween đang hoạt động
 RunService.Stepped:Connect(function()
     if currentTween and currentTween.PlaybackState == Enum.PlaybackState.Playing then
         for _, v in pairs(character:GetDescendants()) do
@@ -45,7 +45,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- 5. Vòng lặp Fix Camera (Áp dụng cùng logic kiểm tra trạng thái như Noclip)
+-- 5. Vòng lặp Fix Camera bám sát nhân vật
 RunService.RenderStepped:Connect(function()
     if currentTween and currentTween.PlaybackState == Enum.PlaybackState.Playing then
         camera.CameraSubject = humanoid
