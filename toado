@@ -1,0 +1,16 @@
+local player = game:GetService("Players").LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Lấy toạ độ X, Y, Z
+local pos = rootPart.Position
+local posString = string.format("%.2f, %.2f, %.2f", pos.X, pos.Y, pos.Z)
+
+-- In kết quả ra console (F9)
+print("📍 Vị trí hiện tại của bạn: " .. posString)
+
+-- Tự động copy vào clipboard để bạn dễ dán vào script khác
+if setclipboard then
+    setclipboard(posString)
+    print("✅ Đã copy toạ độ vào clipboard!")
+end
