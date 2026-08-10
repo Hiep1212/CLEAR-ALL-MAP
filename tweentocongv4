@@ -10,7 +10,7 @@ local humanoid = character:WaitForChild("Humanoid")
 
 -- Toạ độ đích (lấy theo toạ độ mới nhất bạn vừa đề cập)
 local targetPosition = Vector3.new(5709.37, 18.81, 270.24)
-local speed = 100
+local speed = 150
 
 -- Các biến lưu trữ quản lý trạng thái
 local currentTween = nil
