@@ -13,7 +13,6 @@ local LocalPlayer = Players.LocalPlayer
 local placeId = game.PlaceId
 local currentJobId = game.JobId
 
--- Hỗ trợ HTTP Request đa Executor (Synapse, Fluxus, Wave, Solara, Hydrogen...)
 local httpRequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
 
 -- ================= SET TEAM =================
@@ -75,10 +74,14 @@ stopBtn.Parent = frame
 local btnCorner = Instance.new("UICorner", stopBtn)
 btnCorner.CornerRadius = UDim.new(0, 6)
 
-stopBtn.MouseButton1Click:Connect(function()
-    stopped = not stopped
+local function updateBtnVisuals()
     stopBtn.Text = stopped and "☑ Đã Dừng" or "☐ Dừng Hop"
     stopBtn.BackgroundColor3 = stopped and Color3.fromRGB(60, 160, 80) or Color3.fromRGB(200, 60, 60)
+end
+
+stopBtn.MouseButton1Click:Connect(function()
+    stopped = not stopped
+    updateBtnVisuals()
 end)
 
 local function setStatus(text)
@@ -102,15 +105,49 @@ game:GetService("CoreGui").RobloxPromptGui.promptOverlay.ChildAdded:Connect(func
     end
 end)
 
+-- ================= CHECK CONDITIONS =================
+local function hasHellfireTorch()
+    local target = "hellfire torch"
+    local function scan(container)
+        if not container then return false end
+        for _, t in ipairs(container:GetChildren()) do
+            if t:IsA("Tool") and t.Name:lower() == target then
+                return true
+            end
+        end
+        return false
+    end
+    return scan(LocalPlayer.Character) or scan(LocalPlayer:FindFirstChild("Backpack"))
+end
+
+local function isGhoulRace()
+    local ok, res = pcall(function()
+        local data = LocalPlayer:FindFirstChild("Data")
+        if not data then data = LocalPlayer:WaitForChild("Data", 5) end
+        if data then
+            local raceVal = data:FindFirstChild("Race")
+            if raceVal and tostring(raceVal.Value):lower() == "ghoul" then
+                return true
+            end
+        end
+        return false
+    end)
+    return ok and res
+end
+
+local function findMob(mobName)
+    return (workspace:FindFirstChild("Enemies") and workspace.Enemies:FindFirstChild(mobName))
+        or ReplicatedStorage:FindFirstChild(mobName)
+end
+
 -- ================= HOP LOGIC =================
 local TriedHops = {}
 local lastAttemptJobId = nil
 local lastAttemptFailed = false
 
 TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
-    warn("Teleport failed:", teleportResult, errorMessage)
     if lastAttemptJobId then
-        TriedHops[lastAttemptJobId] = os.time() + 600 -- Blacklist 10 phút nếu fail
+        TriedHops[lastAttemptJobId] = os.time() + 600
     end
     lastAttemptFailed = true
 end)
@@ -124,7 +161,6 @@ local function executeHop(jobId)
     return ok
 end
 
--- 1. Tìm Server qua Web API (Siêu nhanh, tự sắp xếp ít người)
 local function getServersHTTP(cursor)
     if not httpRequest then return nil end
     local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100%s", placeId, cursor and ("&cursor=" .. cursor) or "")
@@ -144,7 +180,7 @@ local function hopViaHTTP(maxPlayers)
     local cursor = nil
     local now = os.time()
     
-    for _ = 1, 3 do -- Duyệt tối đa 3 trang API (300 servers)
+    for _ = 1, 3 do 
         if stopped then return false end
         local data = getServersHTTP(cursor)
         
@@ -155,18 +191,13 @@ local function hopViaHTTP(maxPlayers)
                 local count = server.playing
                 
                 if jobId ~= currentJobId and count < maxPlayers and (not TriedHops[jobId] or now > TriedHops[jobId]) then
-                    TriedHops[jobId] = now + 180 -- Đánh dấu đã thử
+                    TriedHops[jobId] = now + 180 
                     setStatus(string.format("Vào server %d người (API)...", count))
                     
                     local sent = executeHop(jobId)
                     task.wait(2)
                     
                     if sent and not lastAttemptFailed then
-                        for i = 3, 1, -1 do
-                            if stopped then break end
-                            setStatus(string.format("Đã gửi lệnh (%d người), chờ %ds...", count, i))
-                            task.wait(1)
-                        end
                         return true
                     end
                 end
@@ -180,7 +211,6 @@ local function hopViaHTTP(maxPlayers)
     return false
 end
 
--- 2. Fallback: Tìm Server qua Remote Game (Khi HTTP API lỗi hoặc không hỗ trợ)
 local function hopViaRemote(maxPlayers)
     local page = 1
     local maxPage = 15
@@ -225,22 +255,20 @@ local function hopViaRemote(maxPlayers)
     return false
 end
 
--- Tổng hợp logic Hop Server
 local function hopServer()
     local currentMaxLimit = TARGET_MAX_PLAYERS
     
     while not stopped do
-        -- Thử HTTP API trước
+        if hasHellfireTorch() or isGhoulRace() then return false end
+        
         if httpRequest then
             local success = hopViaHTTP(currentMaxLimit)
             if success then return true end
         end
         
-        -- Nếu HTTP thất bại hoặc không dùng được, dùng Remote Game
         local successRemote = hopViaRemote(currentMaxLimit)
         if successRemote then return true end
         
-        -- Nếu không tìm được server < maxLimit người, nới rộng giới hạn số người
         if currentMaxLimit < 12 then
             currentMaxLimit = currentMaxLimit + 2
             setStatus(string.format("Không có server <%d người, tăng lên %d...", currentMaxLimit - 2, currentMaxLimit))
@@ -253,15 +281,25 @@ local function hopServer()
     return false
 end
 
--- ================= CORE LOGIC =================
-local function findMob(mobName)
-    return (workspace:FindFirstChild("Enemies") and workspace.Enemies:FindFirstChild(mobName))
-        or ReplicatedStorage:FindFirstChild(mobName)
-end
-
 -- ================= MAIN LOOP =================
 task.spawn(function()
     while true do
+        -- 1. ƯU TIÊN KIỂM TRA ĐIỀU KIỆN DỪNG
+        if hasHellfireTorch() or isGhoulRace() then
+            if not stopped then
+                stopped = true
+                updateBtnVisuals()
+            end
+            if hasHellfireTorch() then
+                setStatus("🔥 ĐÃ CÓ HELLFIRE TORCH! Dừng Hop.")
+            elseif isGhoulRace() then
+                setStatus("💀 ĐÃ ĐẠT TỘC GHOUL! Dừng Hop.")
+            end
+            task.wait(2)
+            continue 
+        end
+
+        -- 2. VÒNG LẶP BOSS BÌNH THƯỜNG
         if stopped then
             setStatus("Đã dừng Hop")
             task.wait(1)
@@ -269,20 +307,23 @@ task.spawn(function()
             local mob = findMob(MOB_NAME)
 
             if mob then
-                setStatus("✅ Có Boss - " .. MOB_NAME)
+                setStatus("✅ Có Boss - " .. MOB_NAME .. " đang ở trong server.")
+                -- Treo chờ Boss chết hoặc mình rớt đồ
                 while mob and mob.Parent and not stopped do
+                    if hasHellfireTorch() or isGhoulRace() then break end 
                     task.wait(1)
                     mob = findMob(MOB_NAME)
                 end
 
-                if not stopped then
-                    setStatus("Boss chết/mất, đợi 30s trước khi hop...")
-                    for i = 30, 1, -1 do
-                        if stopped then break end
-                        setStatus(string.format("Boss chết, đợi %ds...", i))
+                if not stopped and not (hasHellfireTorch() or isGhoulRace()) then
+                    setStatus("Boss đã chết/biến mất, đợi 60s trước khi hop...")
+                    -- THAY ĐỔI Ở ĐÂY: Đếm ngược 60 giây thay vì 10 giây
+                    for i = 60, 1, -1 do
+                        if stopped or hasHellfireTorch() or isGhoulRace() then break end
+                        setStatus(string.format("Boss mất, đợi %ds...", i))
                         task.wait(1)
                     end
-                    if not stopped then
+                    if not stopped and not (hasHellfireTorch() or isGhoulRace()) then
                         hopServer()
                     end
                 end
